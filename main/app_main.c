@@ -1,4 +1,3 @@
-#include "../components/esp32-owb/include/owb_rmt.h"
 #include "app_status.h"
 #include <app_rainmaker.h>
 #include <app_wifi.h>
@@ -11,10 +10,12 @@
 #include <esp_wifi.h>
 #include <nvs_flash.h>
 #include <owb.h>
+#include <owb_rmt.h>
 #include <wifi_reconnect.h>
 
 #define APP_DEVICE_NAME CONFIG_APP_DEVICE_NAME
 #define APP_DEVICE_TYPE CONFIG_APP_DEVICE_TYPE
+#define APP_CONTROL_LOOP_INTERVAL CONFIG_APP_CONTROL_LOOP_INTERVAL
 #define HW_DS18B20_PIN CONFIG_HW_DS18B20_PIN
 #define HW_SOIL_SENSOR_TOUCH_PAD CONFIG_HW_SOIL_SENSOR_TOUCH_PAD
 #define SENSORS_RMT_CHANNEL_TX RMT_CHANNEL_0
@@ -25,6 +26,7 @@ static const char TAG[] = "app_main";
 // State
 static owb_rmt_driver_info owb_driver = {};
 static DS18B20_Info temperature_sensor = {};
+static float temperature_value = 0;
 
 // Program
 static void app_devices_init(esp_rmaker_node_t *node);
@@ -69,7 +71,7 @@ void setup()
     // Temperature sensor init
     owb_rmt_initialize(&owb_driver, HW_DS18B20_PIN, SENSORS_RMT_CHANNEL_TX, SENSORS_RMT_CHANNEL_RX);
     owb_use_crc(&owb_driver.bus, true);
-    ds18b20_init_solo(&temperature_sensor, owb_driver.bus); // Only single sensor is expected
+    ds18b20_init_solo(&temperature_sensor, &owb_driver.bus); // Only single sensor is expected
     ds18b20_use_crc(&temperature_sensor, true);
     ds18b20_set_resolution(&temperature_sensor, DS18B20_RESOLUTION_12_BIT);
 
@@ -91,12 +93,28 @@ void setup()
     ESP_LOGI(TAG, "setup complete");
 }
 
-void app_main()
+_Noreturn void app_main()
 {
     setup();
 
-    // Run
-    ESP_LOGI(TAG, "life is good");
+    // Read values continuously
+    TickType_t start = xTaskGetTickCount();
+
+    for (;;)
+    {
+        // Read temperature
+        ds18b20_convert_all(&owb_driver.bus);
+        ds18b20_wait_for_conversion(&temperature_sensor);
+
+        DS18B20_ERROR err = ds18b20_read_temp(&temperature_sensor, &temperature_value);
+        if (err != DS18B20_OK)
+        {
+            ESP_LOGW(TAG, "failed to read temperature: %d", err);
+        }
+
+        // Throttle
+        vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
+    }
 }
 
 static esp_err_t device_write_cb(__unused const esp_rmaker_device_t *device, const esp_rmaker_param_t *param,

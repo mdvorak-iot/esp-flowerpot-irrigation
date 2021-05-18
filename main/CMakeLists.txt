@@ -1,13 +1,21 @@
 cmake_minimum_required(VERSION 3.15.0)
 
 idf_component_register(
-        SRC_DIRS .
+        SRCS
+        app_main.c
+        app_status.c
         INCLUDE_DIRS .
         REQUIRES
         freertos
         nvs_flash
-        rmaker_common
+        log
+        esp32
+        esp_wifi
+        app_update
         wifi_provisioning
+        esp_rainmaker
+        rmaker_common
+        esp_http_server
         double_reset
         status_led
         wifi_reconnect
