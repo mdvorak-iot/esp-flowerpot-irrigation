@@ -13,4 +13,6 @@ idf_component_register(
         wifi_reconnect
         app_wifi
         rainmaker_init
+        esp32-owb
+        esp32-ds18b20
 )

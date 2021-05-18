@@ -1,20 +1,30 @@
+#include "../components/esp32-owb/include/owb_rmt.h"
 #include "app_status.h"
 #include <app_rainmaker.h>
 #include <app_wifi.h>
 #include <double_reset.h>
 #include <driver/touch_sensor.h>
+#include <ds18b20.h>
 #include <esp_log.h>
 #include <esp_rmaker_core.h>
 #include <esp_rmaker_standard_params.h>
 #include <esp_wifi.h>
 #include <nvs_flash.h>
-#include <string.h>
+#include <owb.h>
 #include <wifi_reconnect.h>
 
 #define APP_DEVICE_NAME CONFIG_APP_DEVICE_NAME
 #define APP_DEVICE_TYPE CONFIG_APP_DEVICE_TYPE
+#define HW_DS18B20_PIN CONFIG_HW_DS18B20_PIN
+#define HW_SOIL_SENSOR_TOUCH_PAD CONFIG_HW_SOIL_SENSOR_TOUCH_PAD
+#define SENSORS_RMT_CHANNEL_TX RMT_CHANNEL_0
+#define SENSORS_RMT_CHANNEL_RX RMT_CHANNEL_1
 
 static const char TAG[] = "app_main";
+
+// State
+static owb_rmt_driver_info owb_driver = {};
+static DS18B20_Info temperature_sensor = {};
 
 // Program
 static void app_devices_init(esp_rmaker_node_t *node);
@@ -49,12 +59,19 @@ void setup()
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MAX_MODEM));
     ESP_ERROR_CHECK(wifi_reconnect_start());
 
-    // HW Init
+    // Soil humidity (Touch) sensor init
     // TODO configurable
     ESP_ERROR_CHECK(touch_pad_init());
-    ESP_ERROR_CHECK(touch_pad_set_voltage(TOUCH_HVOLT_2V4, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_0V));
-    ESP_ERROR_CHECK(touch_pad_config(TOUCH_PAD_NUM2, 0)); // GPIO2
+    ESP_ERROR_CHECK(touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_0V));
+    ESP_ERROR_CHECK(touch_pad_config(HW_SOIL_SENSOR_TOUCH_PAD, 0));
     ESP_ERROR_CHECK(touch_pad_filter_start(10));
+
+    // Temperature sensor init
+    owb_rmt_initialize(&owb_driver, HW_DS18B20_PIN, SENSORS_RMT_CHANNEL_TX, SENSORS_RMT_CHANNEL_RX);
+    owb_use_crc(&owb_driver.bus, true);
+    ds18b20_init_solo(&temperature_sensor, owb_driver.bus); // Only single sensor is expected
+    ds18b20_use_crc(&temperature_sensor, true);
+    ds18b20_set_resolution(&temperature_sensor, DS18B20_RESOLUTION_12_BIT);
 
     // RainMaker
     char node_name[APP_RMAKER_NODE_NAME_LEN] = {};

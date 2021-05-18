@@ -7,3 +7,15 @@ menu "Application config"
         string "RainMaker device type"
         default "esp.device.switch"
 endmenu
+
+menu "Hardware config"
+    config HW_DS18B20_PIN
+        int "Temperature sensors data PIN"
+        default 21
+
+    config HW_SOIL_SENSOR_TOUCH_PAD
+        int "Soil sensor touch pad"
+        default 2
+        help
+            Look in docs, what pad corresponds to which pin.
+endmenu
