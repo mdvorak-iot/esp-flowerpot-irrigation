@@ -2,6 +2,7 @@
 #include <app_rainmaker.h>
 #include <app_wifi.h>
 #include <double_reset.h>
+#include <driver/touch_sensor.h>
 #include <esp_log.h>
 #include <esp_rmaker_core.h>
 #include <esp_rmaker_standard_params.h>
@@ -47,6 +48,13 @@ void setup()
     ESP_ERROR_CHECK(app_wifi_init(&wifi_cfg));
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MAX_MODEM));
     ESP_ERROR_CHECK(wifi_reconnect_start());
+
+    // HW Init
+    // TODO configurable
+    ESP_ERROR_CHECK(touch_pad_init());
+    ESP_ERROR_CHECK(touch_pad_set_voltage(TOUCH_HVOLT_2V4, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_0V));
+    ESP_ERROR_CHECK(touch_pad_config(TOUCH_PAD_NUM2, 0)); // GPIO2
+    ESP_ERROR_CHECK(touch_pad_filter_start(10));
 
     // RainMaker
     char node_name[APP_RMAKER_NODE_NAME_LEN] = {};
