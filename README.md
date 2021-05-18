@@ -1,4 +1,4 @@
-# esp-app-template
+# esp-flowerpot-irrigation
 
 TODO description.
 
