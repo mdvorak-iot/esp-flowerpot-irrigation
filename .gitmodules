@@ -16,3 +16,9 @@
 [submodule "rainmaker_init"]
 	path = components/rainmaker_init
 	url = https://github.com/mdvorak-iot/esp-rainmaker-init.git
+[submodule "esp32-owb"]
+	path = components/esp32-owb
+	url = https://github.com/DavidAntliff/esp32-owb.git
+[submodule "esp32-ds18b20"]
+	path = components/esp32-ds18b20
+	url = https://github.com/DavidAntliff/esp32-ds18b20.git
