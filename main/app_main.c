@@ -27,6 +27,7 @@ static const char TAG[] = "app_main";
 static owb_rmt_driver_info owb_driver = {};
 static DS18B20_Info temperature_sensor = {};
 static float temperature_value = 0;
+static uint16_t soil_value = 0;
 
 // Program
 static void app_devices_init(esp_rmaker_node_t *node);
@@ -111,6 +112,12 @@ _Noreturn void app_main()
         {
             ESP_LOGW(TAG, "failed to read temperature: %d", err);
         }
+
+        // Read soil humidity
+        ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read_filtered(HW_SOIL_SENSOR_TOUCH_PAD, &soil_value));
+
+        // Log output
+        ESP_LOGD(TAG, "soil: %d,\ttemperature: %.3f", soil_value, temperature_value);
 
         // Throttle
         vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
