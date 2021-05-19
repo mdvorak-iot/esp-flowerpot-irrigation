@@ -4,6 +4,7 @@
 #include <double_reset.h>
 #include <driver/touch_sensor.h>
 #include <ds18b20.h>
+#include <esp_http_server.h>
 #include <esp_log.h>
 #include <esp_rmaker_core.h>
 #include <esp_rmaker_standard_params.h>
@@ -11,6 +12,7 @@
 #include <nvs_flash.h>
 #include <owb.h>
 #include <owb_rmt.h>
+#include <util/util_append.h>
 #include <wifi_reconnect.h>
 
 #define APP_DEVICE_NAME CONFIG_APP_DEVICE_NAME
@@ -24,6 +26,7 @@
 static const char TAG[] = "app_main";
 
 // State
+static httpd_handle_t httpd = NULL;
 static owb_rmt_driver_info owb_driver = {};
 static DS18B20_Info temperature_sensor = {};
 static float temperature_value = 0;
@@ -31,6 +34,7 @@ static uint16_t soil_value = 0;
 
 // Program
 static void app_devices_init(esp_rmaker_node_t *node);
+static esp_err_t metrics_http_handler(httpd_req_t *r);
 
 void setup()
 {
@@ -65,7 +69,7 @@ void setup()
     // Soil humidity (Touch) sensor init
     // TODO configurable
     ESP_ERROR_CHECK(touch_pad_init());
-    ESP_ERROR_CHECK(touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_0V));
+    ESP_ERROR_CHECK(touch_pad_set_voltage(TOUCH_HVOLT_2V4, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_0V));
     ESP_ERROR_CHECK(touch_pad_config(HW_SOIL_SENSOR_TOUCH_PAD, 0));
     ESP_ERROR_CHECK(touch_pad_filter_start(10));
 
@@ -84,6 +88,12 @@ void setup()
     ESP_ERROR_CHECK(app_rmaker_init(node_name, &node));
 
     app_devices_init(node);
+
+    // HTTP Server
+    httpd_config_t httpd_config = HTTPD_DEFAULT_CONFIG();
+    ESP_ERROR_CHECK_WITHOUT_ABORT(httpd_start(&httpd, &httpd_config));
+    httpd_uri_t metrics_handler_uri = {.uri = "/metrics", .method = HTTP_GET, .handler = metrics_http_handler};
+    ESP_ERROR_CHECK_WITHOUT_ABORT(httpd_register_uri_handler(httpd, &metrics_handler_uri));
 
     // Start
     ESP_ERROR_CHECK(tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, node_name)); // NOTE this isn't available before WiFi init
@@ -117,7 +127,7 @@ _Noreturn void app_main()
         ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read_filtered(HW_SOIL_SENSOR_TOUCH_PAD, &soil_value));
 
         // Log output
-        ESP_LOGD(TAG, "soil: %d,\ttemperature: %.3f", soil_value, temperature_value);
+        ESP_LOGI(TAG, "soil: %d,\ttemperature: %.3f", soil_value, temperature_value);
 
         // Throttle
         vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
@@ -148,4 +158,49 @@ static void app_devices_init(esp_rmaker_node_t *node)
     ESP_ERROR_CHECK(esp_rmaker_node_add_device(node, device));
 
     // Register buttons, sensors, etc
+}
+
+static esp_err_t metrics_http_handler(httpd_req_t *r)
+{
+    // Read device name from NVS, since rainmaker provides absolutely no means to get it directly
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open(APP_DEVICE_NAME, NVS_READONLY, &handle);
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "failed to open nvs storage");
+        return err;
+    }
+    char name[100] = {};
+    size_t name_len = sizeof(name);
+    nvs_get_str(handle, ESP_RMAKER_DEF_NAME_PARAM, name, &name_len);
+    nvs_close(handle);
+
+    // Build metrics string
+    char buf[1024] = {};
+    char *ptr = buf;
+    const char *end = ptr + sizeof(buf);
+
+    // Temperature
+    char temperature_address[17] = {};
+    snprintf(temperature_address, sizeof(temperature_address), "%llx", *(uint64_t *)temperature_sensor.rom_code.bytes);
+
+    ptr = util_append(ptr, end, "# TYPE esp_celsius gauge\n");
+    ptr = util_append(ptr, end, "esp_celsius{address=\"%s\",hardware=\"%s\",sensor=\"Ambient\"} %0.3f\n", temperature_address, name, temperature_value);
+
+    // Soil
+    ptr = util_append(ptr, end, "# TYPE esp_humidity_raw gauge\n");
+    ptr = util_append(ptr, end, "esp_humidity_raw{hardware=\"%s\",sensor=\"Soil\"} %u\n", name, soil_value);
+
+    // Send result
+    if (ptr != NULL)
+    {
+        // Send data
+        httpd_resp_set_type(r, "text/plain");
+        return httpd_resp_send(r, buf, (ssize_t)(ptr - buf));
+    }
+    else
+    {
+        // Buffer overflow
+        return ESP_FAIL;
+    }
 }

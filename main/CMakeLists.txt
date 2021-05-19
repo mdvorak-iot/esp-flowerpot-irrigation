@@ -4,6 +4,7 @@ idf_component_register(
         SRCS
         app_main.c
         app_status.c
+        util/util_append.c
         INCLUDE_DIRS .
         REQUIRES
         freertos

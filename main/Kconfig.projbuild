@@ -1,11 +1,11 @@
 menu "Application config"
     config APP_DEVICE_NAME
         string "RainMaker device name"
-        default "Example"
+        default "Flower Pot"
 
     config APP_DEVICE_TYPE
         string "RainMaker device type"
-        default "esp.device.switch"
+        default "esp.device.temperature-sensor"
 
     config APP_CONTROL_LOOP_INTERVAL
         int "Main control loop interval in ms"
