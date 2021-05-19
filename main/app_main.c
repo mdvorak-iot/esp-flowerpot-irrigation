@@ -2,6 +2,7 @@
 #include <app_rainmaker.h>
 #include <app_wifi.h>
 #include <double_reset.h>
+#include <driver/adc_common.h>
 #include <driver/touch_sensor.h>
 #include <ds18b20.h>
 #include <esp_http_server.h>
@@ -31,6 +32,7 @@ static owb_rmt_driver_info owb_driver = {};
 static DS18B20_Info temperature_sensor = {};
 static float temperature_value = 0;
 static uint16_t soil_value = 0;
+static int soil_adc_value = 0;
 
 // Program
 static void app_devices_init(esp_rmaker_node_t *node);
@@ -72,6 +74,10 @@ void setup()
     ESP_ERROR_CHECK(touch_pad_set_voltage(TOUCH_HVOLT_2V4, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_0V));
     ESP_ERROR_CHECK(touch_pad_config(HW_SOIL_SENSOR_TOUCH_PAD, 0));
     ESP_ERROR_CHECK(touch_pad_filter_start(10));
+
+    // Soil humidity (ADC) sensor init
+    ESP_ERROR_CHECK(adc1_config_width(ADC_WIDTH_BIT_12));
+    ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11)); // GPIO36
 
     // Temperature sensor init
     owb_rmt_initialize(&owb_driver, HW_DS18B20_PIN, SENSORS_RMT_CHANNEL_TX, SENSORS_RMT_CHANNEL_RX);
@@ -125,9 +131,10 @@ _Noreturn void app_main()
 
         // Read soil humidity
         ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read_filtered(HW_SOIL_SENSOR_TOUCH_PAD, &soil_value));
+        soil_adc_value = adc1_get_raw(ADC1_CHANNEL_0);
 
         // Log output
-        ESP_LOGI(TAG, "soil: %d,\ttemperature: %.3f", soil_value, temperature_value);
+        ESP_LOGI(TAG, "soil1: %d, soil2: %d,\ttemperature: %.3f", soil_value, soil_adc_value, temperature_value);
 
         // Throttle
         vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
@@ -190,6 +197,7 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
     // Soil
     ptr = util_append(ptr, end, "# TYPE esp_humidity_raw gauge\n");
     ptr = util_append(ptr, end, "esp_humidity_raw{hardware=\"%s\",sensor=\"Soil\"} %u\n", name, soil_value);
+    ptr = util_append(ptr, end, "esp_humidity_raw{hardware=\"%s\",sensor=\"ADC\"} %d\n", name, soil_adc_value);
 
     // Send result
     if (ptr != NULL)
