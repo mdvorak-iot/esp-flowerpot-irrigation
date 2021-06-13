@@ -1,6 +1,5 @@
 #include <esp_event.h>
 #include <esp_log.h>
-#include <esp_rmaker_common_events.h>
 #include <freertos/event_groups.h>
 #include <status_led.h>
 #include <wifi_provisioning/manager.h>
@@ -73,8 +72,7 @@ void app_status_init()
         // Register event handlers
         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_handler_instance_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, wifi_prov_handler, STATUS_LED_DEFAULT, NULL));
         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, disconnected_handler, STATUS_LED_DEFAULT, NULL));
-        ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_handler_instance_register(RMAKER_COMMON_EVENT, RMAKER_MQTT_EVENT_DISCONNECTED, disconnected_handler, STATUS_LED_DEFAULT, NULL));
-        ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_handler_instance_register(RMAKER_COMMON_EVENT, RMAKER_MQTT_EVENT_CONNECTED, connected_handler, STATUS_LED_DEFAULT, NULL));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, connected_handler, STATUS_LED_DEFAULT, NULL));
     }
     else
     {

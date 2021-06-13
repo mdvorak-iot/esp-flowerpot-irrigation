@@ -9,19 +9,59 @@ menu "Application config"
 
     config APP_CONTROL_LOOP_INTERVAL
         int "Main control loop interval in ms"
-        default 1000
-        help
-            Interval in which temperatures are read and fan speed adjusted.
+        default 10000
 endmenu
 
 menu "Hardware config"
     config HW_DS18B20_PIN
         int "Temperature sensors data PIN"
-        default 21
+        default 23
 
-    config HW_SOIL_SENSOR_TOUCH_PAD
-        int "Soil sensor touch pad"
-        default 2
+    config HW_SENSOR_ENABLE_PIN
+        int ""
+        default 27
         help
-            Look in docs, what pad corresponds to which pin.
+            Pin, which powers the water level and soil humidity sensors.
+
+    config HW_SOIL_SENSOR_ADC1_CHANNEL
+        int "Soil humidity sensor ADC1 channel"
+        default 4
+        help
+            Look in docs, what channel corresponds to which pin.
+
+    config HW_WATER_LEVEL_SENSOR_COUNT
+        int "Number of water level sensors"
+        default 5
+        help
+            Look in docs, what channel corresponds to which pin.
+
+    config HW_WATER_LEVEL_ADC1_CHANNEL_1
+        int "ADC1 channel for 1st water level"
+        default 3
+        help
+            Look in docs, what channel corresponds to which pin.
+
+    config HW_WATER_LEVEL_ADC1_CHANNEL_2
+        int "ADC1 channel for 2nd water level"
+        default 6
+        help
+            Look in docs, what channel corresponds to which pin.
+
+    config HW_WATER_LEVEL_ADC1_CHANNEL_3
+        int "ADC1 channel for 3rd water level"
+        default 7
+        help
+            Look in docs, what channel corresponds to which pin.
+
+    config HW_WATER_LEVEL_ADC1_CHANNEL_4
+        int "ADC1 channel for 4th water level"
+        default 0
+        help
+            Look in docs, what channel corresponds to which pin.
+
+    config HW_WATER_LEVEL_ADC1_CHANNEL_5
+        int "ADC1 channel for 5th water level"
+        default 5
+        help
+            Look in docs, what channel corresponds to which pin.
 endmenu

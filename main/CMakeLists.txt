@@ -14,14 +14,11 @@ idf_component_register(
         esp_wifi
         app_update
         wifi_provisioning
-        esp_rainmaker
-        rmaker_common
         esp_http_server
         double_reset
         status_led
         wifi_reconnect
         app_wifi
-        rainmaker_init
         esp32-owb
         esp32-ds18b20
 )
