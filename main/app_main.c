@@ -221,6 +221,7 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
     else
     {
         // Buffer overflow
+        ESP_LOGE(TAG, "metrics buffer overflow");
         return ESP_FAIL;
     }
 }
