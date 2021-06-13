@@ -13,12 +13,24 @@ menu "Application config"
 endmenu
 
 menu "Hardware config"
+    config HW_VALVE_ENABLE_PIN
+        int "Valve enable pin"
+        default 2
+        help
+            Open normally closed valve pin
+
+    config HW_VALVE_ON_STATE
+        int "Valve on-state"
+        default 1
+        help
+            1 for N-MOSFET, 0 for P-MOSFET (inverted control)
+
     config HW_DS18B20_PIN
-        int "Temperature sensors data PIN"
+        int "Temperature sensors data pin"
         default 23
 
     config HW_SENSOR_ENABLE_PIN
-        int ""
+        int "Power-up water level and soil humidity sensors pin"
         default 27
         help
             Pin, which powers the water level and soil humidity sensors.
@@ -36,8 +48,10 @@ menu "Hardware config"
             Look in docs, what channel corresponds to which pin.
 
     config HW_WATER_LEVEL_VALUE_THRESHOLD
-        int "Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)"
+        int "Threshold for ADC raw value (0-4095)"
         default 1000
+        help
+            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
 
     config HW_WATER_LEVEL_ADC1_CHANNEL_1
         int "ADC1 channel for 1st water level"

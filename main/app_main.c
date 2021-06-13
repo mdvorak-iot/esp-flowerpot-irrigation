@@ -14,6 +14,10 @@
 
 #define APP_DEVICE_NAME CONFIG_APP_DEVICE_NAME
 #define APP_CONTROL_LOOP_INTERVAL CONFIG_APP_CONTROL_LOOP_INTERVAL
+
+#define HW_VALVE_ENABLE_PIN CONFIG_HW_VALVE_ENABLE_PIN
+#define HW_VALVE_ON_STATE CONFIG_HW_VALVE_ON_STATE
+#define HW_VALVE_OFF_STATE (HW_VALVE_ON_STATE ? 0 : 1)
 #define HW_DS18B20_PIN CONFIG_HW_DS18B20_PIN
 #define HW_SENSOR_ENABLE_PIN CONFIG_HW_SENSOR_ENABLE_PIN
 #define HW_SOIL_SENSOR_ADC1_CHANNEL CONFIG_HW_SOIL_SENSOR_ADC1_CHANNEL
@@ -93,10 +97,15 @@ void setup()
     ESP_ERROR_CHECK(wifi_reconnect_start());
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_PROV_EVENT, WIFI_PROV_START, print_qrcode_handler, NULL, NULL));
 
+    // Valve
+    ESP_ERROR_CHECK(gpio_reset_pin(HW_VALVE_ENABLE_PIN));
+    ESP_ERROR_CHECK(gpio_set_direction(HW_VALVE_ENABLE_PIN, GPIO_MODE_OUTPUT));
+    ESP_ERROR_CHECK(gpio_set_level(HW_SENSOR_ENABLE_PIN, HW_VALVE_OFF_STATE));
+
     // Sensor power config
     ESP_ERROR_CHECK(gpio_reset_pin(HW_SENSOR_ENABLE_PIN));
     ESP_ERROR_CHECK(gpio_set_direction(HW_SENSOR_ENABLE_PIN, GPIO_MODE_OUTPUT));
-    ESP_ERROR_CHECK(gpio_pulldown_en(HW_SENSOR_ENABLE_PIN));
+    ESP_ERROR_CHECK(gpio_set_level(HW_SENSOR_ENABLE_PIN, 0));
 
     // Soil humidity and water level sensor init
     ESP_ERROR_CHECK(adc1_config_width(ADC_WIDTH_BIT_12));
