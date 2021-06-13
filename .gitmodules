@@ -7,15 +7,9 @@
 [submodule "wifi_reconnect"]
 	path = components/wifi_reconnect
 	url = https://github.com/mdvorak-iot/esp-wifi-reconnect.git
-[submodule "rainmaker"]
-	path = rainmaker
-	url = https://github.com/espressif/esp-rainmaker.git
 [submodule "app_wifi"]
 	path = components/app_wifi
 	url = https://github.com/mdvorak-iot/esp-app-wifi.git
-[submodule "rainmaker_init"]
-	path = components/rainmaker_init
-	url = https://github.com/mdvorak-iot/esp-rainmaker-init.git
 [submodule "esp32-owb"]
 	path = components/esp32-owb
 	url = https://github.com/DavidAntliff/esp32-owb.git
