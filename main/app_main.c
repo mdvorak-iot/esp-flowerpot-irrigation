@@ -173,7 +173,7 @@ _Noreturn void app_main()
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_SENSOR_ENABLE_PIN, 0));
 
         // Log output
-        ESP_LOGI(TAG, "water: %.1f, soil: %d,\ttemperature: %.3f", water_level_readout, soil_humidity_value, temperature_value);
+        ESP_LOGI(TAG, "water: %.1f, soil: %d,\ttemperature: %.3f", water_level, soil_humidity_value, temperature_value);
 
         // Throttle
         vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
