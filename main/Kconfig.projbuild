@@ -35,6 +35,10 @@ menu "Hardware config"
         help
             Look in docs, what channel corresponds to which pin.
 
+    config HW_WATER_LEVEL_VALUE_THRESHOLD
+        int "Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)"
+        default 1000
+
     config HW_WATER_LEVEL_ADC1_CHANNEL_1
         int "ADC1 channel for 1st water level"
         default 3

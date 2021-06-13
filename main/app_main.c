@@ -18,6 +18,7 @@
 #define HW_SENSOR_ENABLE_PIN CONFIG_HW_SENSOR_ENABLE_PIN
 #define HW_SOIL_SENSOR_ADC1_CHANNEL CONFIG_HW_SOIL_SENSOR_ADC1_CHANNEL
 #define HW_WATER_LEVEL_SENSOR_COUNT CONFIG_HW_WATER_LEVEL_SENSOR_COUNT
+#define HW_WATER_LEVEL_VALUE_THRESHOLD CONFIG_HW_WATER_LEVEL_VALUE_THRESHOLD
 
 static adc1_channel_t HW_WATER_LEVEL_ADC1_CHANNELS[HW_WATER_LEVEL_SENSOR_COUNT] = {
     CONFIG_HW_WATER_LEVEL_ADC1_CHANNEL_1,
@@ -45,7 +46,6 @@ static float temperature_value = 0;
 static int soil_humidity_value = 0;
 static int water_level_values[HW_WATER_LEVEL_SENSOR_COUNT] = {};
 static float water_level = 0.0f;
-static int water_level_sensor_threshold = 1000; // TODO configurable both in Kconfig and remotely
 
 // Program
 static esp_err_t metrics_http_handler(httpd_req_t *r);
@@ -145,10 +145,10 @@ _Noreturn void app_main()
         ds18b20_convert_all(&owb_driver.bus);
         ds18b20_wait_for_conversion(&temperature_sensor);
 
-        DS18B20_ERROR err = ds18b20_read_temp(&temperature_sensor, &temperature_value);
-        if (err != DS18B20_OK)
+        DS18B20_ERROR ds_err = ds18b20_read_temp(&temperature_sensor, &temperature_value);
+        if (ds_err != DS18B20_OK)
         {
-            ESP_LOGW(TAG, "failed to read temperature: %d", err);
+            ESP_LOGW(TAG, "failed to read temperature: %d", ds_err);
         }
 
         // Wait for sensors to stabilize (adds extra 100ms to the loop)
@@ -162,7 +162,7 @@ _Noreturn void app_main()
         for (size_t i = 0; i < HW_WATER_LEVEL_SENSOR_COUNT; i++)
         {
             int x = water_level_values[i] = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNELS[i]);
-            if (x > water_level_sensor_threshold)
+            if (x > HW_WATER_LEVEL_VALUE_THRESHOLD)
             {
                 water_level_readout = (float)(i + 1) / (float)HW_WATER_LEVEL_SENSOR_COUNT;
             }
@@ -170,8 +170,7 @@ _Noreturn void app_main()
         water_level = water_level_readout;
 
         // Disable sensors
-        // TODO
-        //  ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_SENSOR_ENABLE_PIN, 0));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_SENSOR_ENABLE_PIN, 0));
 
         // Log output
         ESP_LOGI(TAG, "water: %.1f, soil: %d,\ttemperature: %.3f", water_level_readout, soil_humidity_value, temperature_value);
