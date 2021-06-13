@@ -6,6 +6,7 @@
 #include <esp_http_server.h>
 #include <esp_log.h>
 #include <esp_wifi.h>
+#include <lwip/apps/sntp.h>
 #include <nvs_flash.h>
 #include <owb.h>
 #include <owb_rmt.h>
@@ -117,6 +118,13 @@ void setup()
     httpd_uri_t metrics_handler_uri = {.uri = "/metrics", .method = HTTP_GET, .handler = metrics_http_handler};
     ESP_ERROR_CHECK_WITHOUT_ABORT(httpd_register_uri_handler(httpd, &metrics_handler_uri));
 
+    // NTP
+    setenv("TZ", CONFIG_APP_NTP_TZ, 1);
+    tzset();
+    sntp_setservername(0, CONFIG_APP_NTP_SERVER);
+    sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
+    sntp_init();
+
     // Start
     ESP_ERROR_CHECK(app_wifi_start(reconfigure));
 
@@ -172,6 +180,21 @@ _Noreturn void app_main()
 
         // Throttle
         vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
+
+        // Get current time
+        time_t t = time(NULL);
+        struct tm now = {};
+        localtime_r(&t, &now);
+
+        // If valid
+        if (now.tm_year > (2020 - 1900))
+        {
+            ESP_LOGI(TAG, "now is %02d:%02d:%02d", now.tm_hour, now.tm_min, now.tm_sec);
+        }
+        else
+        {
+            ESP_LOGW(TAG, "clock time not available");
+        }
     }
 }
 
