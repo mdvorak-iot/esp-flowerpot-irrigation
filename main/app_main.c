@@ -137,7 +137,6 @@ void setup()
     setenv("TZ", CONFIG_APP_NTP_TZ, 1);
     tzset();
     sntp_setservername(0, CONFIG_APP_NTP_SERVER);
-    sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
     sntp_init();
 
     // Start
