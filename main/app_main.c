@@ -151,6 +151,13 @@ _Noreturn void app_main()
 {
     setup();
 
+    // Wait for irrigation timeout for NTP sync - this implies working internet connection
+    // NOTE time returns value in seconds
+    while (time(NULL) < IRRIGATION_MAX_LENGTH_SECONDS)
+    {
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+
     // Read values continuously
     TickType_t start = xTaskGetTickCount();
 
