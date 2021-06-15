@@ -152,11 +152,12 @@ _Noreturn void app_main()
     setup();
 
     // Wait for irrigation timeout for NTP sync - this implies working internet connection
-    // NOTE time returns value in seconds
+    // NOTE this is needed, so valve is not turned on before wifi connection is made
     while (time(NULL) < IRRIGATION_MAX_LENGTH_SECONDS)
     {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
+    ESP_LOGI(TAG, "time=%ld", time(NULL));
 
     // Read values continuously
     TickType_t start = xTaskGetTickCount();
@@ -271,7 +272,7 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
 
     // Valve
     ptr = util_append(ptr, end, "# TYPE esp_valve gauge\n");
-    ptr = util_append(ptr, end, "esp_water_level{hardware=\"%s\",sensor=\"Water Valve\"} %d\n", name, valve_on);
+    ptr = util_append(ptr, end, "esp_valve {hardware=\"%s\",sensor=\"Water Valve\"} %d\n", name, valve_on);
 
     // Send result
     if (ptr != NULL)
