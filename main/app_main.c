@@ -10,6 +10,7 @@
 #include <nvs_flash.h>
 #include <owb.h>
 #include <owb_rmt.h>
+#include <status_led.h>
 #include <util/util_append.h>
 #include <wifi_reconnect.h>
 
@@ -155,6 +156,12 @@ _Noreturn void app_main()
 
     for (;;)
     {
+        // Simple status led (don't overwrite connecting states)
+        if (!status_led_is_active(STATUS_LED_DEFAULT))
+        {
+            status_led_set_interval_for(STATUS_LED_DEFAULT, 0, true, 100, false);
+        }
+
         // Enable sensors
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_SENSOR_ENABLE_PIN, 1));
 
