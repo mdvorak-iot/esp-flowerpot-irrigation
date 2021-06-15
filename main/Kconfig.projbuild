@@ -85,3 +85,12 @@ menu "Hardware config"
         help
             Look in docs, what channel corresponds to which pin.
 endmenu
+
+# ADC1 channel 0 is GPIO36 (ESP32), GPIO1 (ESP32-S2)
+# ADC1 channel 1 is GPIO37 (ESP32), GPIO2 (ESP32-S2)
+# ADC1 channel 2 is GPIO38 (ESP32), GPIO3 (ESP32-S2)
+# ADC1 channel 3 is GPIO39 (ESP32), GPIO4 (ESP32-S2)
+# ADC1 channel 4 is GPIO32 (ESP32), GPIO5 (ESP32-S2)
+# ADC1 channel 5 is GPIO33 (ESP32), GPIO6 (ESP32-S2)
+# ADC1 channel 6 is GPIO34 (ESP32), GPIO7 (ESP32-S2)
+# ADC1 channel 7 is GPIO35 (ESP32), GPIO8 (ESP32-S2)
