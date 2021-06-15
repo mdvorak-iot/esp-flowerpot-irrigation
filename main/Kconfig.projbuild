@@ -23,7 +23,7 @@ endmenu
 menu "Hardware config"
     config HW_VALVE_ENABLE_PIN
         int "Valve enable pin"
-        default 2
+        default 16
         help
             Open normally closed valve pin
 
