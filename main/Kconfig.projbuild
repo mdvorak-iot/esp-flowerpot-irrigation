@@ -20,6 +20,32 @@ menu "Application config"
         default "cz.pool.ntp.org"
 endmenu
 
+menu "Irrigation control"
+    config IRRIGATION_EVERY_N_HOURS
+        int "Irrigation every N hours"
+        default 2
+        help
+            Irrigation is started always at full hour (zero minutes).
+
+    config IRRIGATION_MAX_LENGTH_SECONDS
+        int "Irrigation maximum length, in seconds"
+        default 120
+        help
+            Irrigation is stopped after given number of seconds, even if high water threshold is not met.
+
+    config IRRIGATION_WATER_LEVEL_LOW_PERCENT
+        int "Low-water level threshold (percent)"
+        default 0
+        help
+            Irrigation won't start, if water does not fall below this value.
+
+    config IRRIGATION_WATER_LEVEL_HIGH_PERCENT
+        int "High-water level threshold (percent)"
+        default 100
+        help
+            Irrigation will stop at this water level.
+endmenu
+
 menu "Hardware config"
     config HW_VALVE_ENABLE_PIN
         int "Valve enable pin"

@@ -39,6 +39,11 @@ static adc1_channel_t HW_WATER_LEVEL_ADC1_CHANNELS[HW_WATER_LEVEL_SENSOR_COUNT] 
 #endif
 };
 
+#define IRRIGATION_EVERY_N_HOURS CONFIG_IRRIGATION_EVERY_N_HOURS
+#define IRRIGATION_MAX_LENGTH_SECONDS CONFIG_IRRIGATION_MAX_LENGTH_SECONDS
+#define IRRIGATION_WATER_LEVEL_LOW_PERCENT CONFIG_IRRIGATION_WATER_LEVEL_LOW_PERCENT
+#define IRRIGATION_WATER_LEVEL_HIGH_PERCENT CONFIG_IRRIGATION_WATER_LEVEL_HIGH_PERCENT
+
 static const char TAG[] = "app_main";
 
 // State
@@ -49,9 +54,19 @@ static float temperature_value = 0;
 static int soil_humidity_value = 0;
 static int water_level_values[HW_WATER_LEVEL_SENSOR_COUNT] = {};
 static float water_level = 0.0f;
+static bool valve_on = false;
 
 // Program
 static esp_err_t metrics_http_handler(httpd_req_t *r);
+
+static bool can_irrigate(time_t t)
+{
+    struct tm now = {};
+    localtime_r(&t, &now);
+
+    int hours_secs = now.tm_min * 60 + now.tm_sec;
+    return (now.tm_hour % IRRIGATION_EVERY_N_HOURS) == 0 && hours_secs >= 0 && hours_secs < IRRIGATION_MAX_LENGTH_SECONDS;
+}
 
 void setup()
 {
@@ -176,25 +191,37 @@ _Noreturn void app_main()
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_SENSOR_ENABLE_PIN, 0));
 
         // Log output
-        ESP_LOGI(TAG, "water: %.1f, soil: %d,\ttemperature: %.3f", water_level, soil_humidity_value, temperature_value);
+        ESP_LOGI(TAG, "water: %.2f, soil: %d,\ttemperature: %.3f", water_level, soil_humidity_value, temperature_value);
 
         // Throttle
         vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
 
-        // Get current time
-        time_t t = time(NULL);
-        struct tm now = {};
-        localtime_r(&t, &now);
+        // Trigger irrigation
+        // NOTE this should be smarter, now it depends on loop execution
+        if (can_irrigate(time(NULL)))
+        {
+            if (!valve_on && water_level <= (float)IRRIGATION_WATER_LEVEL_LOW_PERCENT / 100.0f)
+            {
+                // Turn on the valve
+                ESP_LOGW(TAG, "turning on the valve, low water level detected");
+                valve_on = true;
+            }
+            else if (valve_on && water_level >= (float)IRRIGATION_WATER_LEVEL_HIGH_PERCENT / 100.0f)
+            {
+                // Turn off the valve
+                ESP_LOGW(TAG, "turning on the valve, high water level detected");
+                valve_on = true;
+            }
+        }
+        else if (valve_on)
+        {
+            // Turn off the valve
+            ESP_LOGW(TAG, "turning off the valve because of time-out");
+            valve_on = false;
+        }
 
-        // If valid
-        if (now.tm_year > (2020 - 1900))
-        {
-            ESP_LOGI(TAG, "now is %02d:%02d:%02d", now.tm_hour, now.tm_min, now.tm_sec);
-        }
-        else
-        {
-            ESP_LOGW(TAG, "clock time not available");
-        }
+        // Control valve
+        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_VALVE_ENABLE_PIN, valve_on ? 1 : 0));
     }
 }
 
