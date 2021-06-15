@@ -199,9 +199,6 @@ _Noreturn void app_main()
         // Log output
         ESP_LOGI(TAG, "water: %.2f, soil: %d,\ttemperature: %.3f", water_level, soil_humidity_value, temperature_value);
 
-        // Throttle
-        vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
-
         // Trigger irrigation
         // NOTE this should be smarter, now it depends on loop execution
         if (can_irrigate(time(NULL)))
@@ -228,6 +225,9 @@ _Noreturn void app_main()
 
         // Control valve
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_VALVE_ENABLE_PIN, valve_on ? 1 : 0));
+
+        // Throttle - must be last
+        vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
     }
 }
 
@@ -261,6 +261,10 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
 
     ptr = util_append(ptr, end, "# TYPE esp_water_level gauge\n");
     ptr = util_append(ptr, end, "esp_water_level{hardware=\"%s\",sensor=\"Pot\"} %.2f\n", name, water_level);
+
+    // Valve
+    ptr = util_append(ptr, end, "# TYPE esp_valve gauge\n");
+    ptr = util_append(ptr, end, "esp_water_level{hardware=\"%s\",sensor=\"Water Valve\"} %d\n", name, valve_on);
 
     // Send result
     if (ptr != NULL)
