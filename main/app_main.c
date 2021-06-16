@@ -5,8 +5,8 @@
 #include <ds18b20.h>
 #include <esp_http_server.h>
 #include <esp_log.h>
+#include <esp_sntp.h>
 #include <esp_wifi.h>
-#include <lwip/apps/sntp.h>
 #include <nvs_flash.h>
 #include <owb.h>
 #include <owb_rmt.h>
@@ -138,6 +138,7 @@ void setup()
     setenv("TZ", CONFIG_APP_NTP_TZ, 1);
     tzset();
     sntp_setservername(0, CONFIG_APP_NTP_SERVER);
+    sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
     sntp_init();
 
     // Start
@@ -155,6 +156,7 @@ _Noreturn void app_main()
     // NOTE this is needed, so valve is not turned on before wifi connection is made
     while (time(NULL) < IRRIGATION_MAX_LENGTH_SECONDS)
     {
+        ESP_LOGI(TAG, "time=%ld", time(NULL));
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
     ESP_LOGI(TAG, "time=%ld", time(NULL));

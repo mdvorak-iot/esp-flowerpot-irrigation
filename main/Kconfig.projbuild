@@ -71,7 +71,7 @@ menu "Hardware config"
 
     config HW_WATER_LEVEL_SENSOR_COUNT
         int "Number of water level sensors"
-        default 5
+        default 4
         help
             Look in docs, what channel corresponds to which pin.
 
