@@ -221,7 +221,7 @@ _Noreturn void app_main()
             {
                 // Turn off the valve
                 ESP_LOGW(TAG, "turning on the valve, high water level detected");
-                valve_on = true;
+                valve_on = false;
             }
         }
         else if (valve_on)
