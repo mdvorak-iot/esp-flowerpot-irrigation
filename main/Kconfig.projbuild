@@ -77,13 +77,13 @@ menu "Hardware config"
 
     config HW_WATER_LEVEL_VALUE_LOW
         int "Low threshold for ADC raw value (0-4095)"
-        default 1400
+        default 1500
         help
             Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
 
     config HW_WATER_LEVEL_VALUE_HIGH
         int "Threshold for ADC raw value (0-4095)"
-        default 3000
+        default 2800
         help
             Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
 endmenu
