@@ -49,67 +49,43 @@ endmenu
 menu "Hardware config"
     config HW_VALVE_ENABLE_PIN
         int "Valve enable pin"
-        default 16
+        default 26
         help
             Open normally closed valve pin
 
     config HW_DS18B20_PIN
         int "Temperature sensors data pin"
-        default 23
+        default 27
 
     config HW_SENSOR_ENABLE_PIN
         int "Power-up water level and soil humidity sensors pin"
-        default 27
+        default 25
         help
             Pin, which powers the water level and soil humidity sensors.
 
     config HW_SOIL_SENSOR_ADC1_CHANNEL
         int "Soil humidity sensor ADC1 channel"
-        default 4
-        help
-            Look in docs, what channel corresponds to which pin.
-
-    config HW_WATER_LEVEL_SENSOR_COUNT
-        int "Number of water level sensors"
-        default 4
-        help
-            Look in docs, what channel corresponds to which pin.
-
-    config HW_WATER_LEVEL_VALUE_THRESHOLD
-        int "Threshold for ADC raw value (0-4095)"
-        default 1000
-        help
-            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
-
-    config HW_WATER_LEVEL_ADC1_CHANNEL_1
-        int "ADC1 channel for 1st water level"
-        default 3
-        help
-            Look in docs, what channel corresponds to which pin.
-
-    config HW_WATER_LEVEL_ADC1_CHANNEL_2
-        int "ADC1 channel for 2nd water level"
-        default 6
-        help
-            Look in docs, what channel corresponds to which pin.
-
-    config HW_WATER_LEVEL_ADC1_CHANNEL_3
-        int "ADC1 channel for 3rd water level"
-        default 7
-        help
-            Look in docs, what channel corresponds to which pin.
-
-    config HW_WATER_LEVEL_ADC1_CHANNEL_4
-        int "ADC1 channel for 4th water level"
         default 0
         help
             Look in docs, what channel corresponds to which pin.
 
-    config HW_WATER_LEVEL_ADC1_CHANNEL_5
-        int "ADC1 channel for 5th water level"
-        default 5
+    config HW_WATER_LEVEL_ADC1_CHANNEL
+        int "Water level sensor ADC1 channel"
+        default 3
         help
             Look in docs, what channel corresponds to which pin.
+
+    config HW_WATER_LEVEL_VALUE_LOW
+        int "Low threshold for ADC raw value (0-4095)"
+        default 1400
+        help
+            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
+
+    config HW_WATER_LEVEL_VALUE_HIGH
+        int "Threshold for ADC raw value (0-4095)"
+        default 3000
+        help
+            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
 endmenu
 
 # ADC1 channel 0 is GPIO36 (ESP32), GPIO1 (ESP32-S2)

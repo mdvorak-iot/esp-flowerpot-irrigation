@@ -21,24 +21,9 @@
 #define HW_DS18B20_PIN CONFIG_HW_DS18B20_PIN
 #define HW_SENSOR_ENABLE_PIN CONFIG_HW_SENSOR_ENABLE_PIN
 #define HW_SOIL_SENSOR_ADC1_CHANNEL CONFIG_HW_SOIL_SENSOR_ADC1_CHANNEL
-#define HW_WATER_LEVEL_SENSOR_COUNT CONFIG_HW_WATER_LEVEL_SENSOR_COUNT
-#define HW_WATER_LEVEL_VALUE_THRESHOLD CONFIG_HW_WATER_LEVEL_VALUE_THRESHOLD
-
-static adc1_channel_t HW_WATER_LEVEL_ADC1_CHANNELS[HW_WATER_LEVEL_SENSOR_COUNT] = {
-    CONFIG_HW_WATER_LEVEL_ADC1_CHANNEL_1,
-#if CONFIG_HW_WATER_LEVEL_SENSOR_COUNT > 1
-    CONFIG_HW_WATER_LEVEL_ADC1_CHANNEL_2,
-#endif
-#if CONFIG_HW_WATER_LEVEL_SENSOR_COUNT > 2
-    CONFIG_HW_WATER_LEVEL_ADC1_CHANNEL_3,
-#endif
-#if CONFIG_HW_WATER_LEVEL_SENSOR_COUNT > 3
-    CONFIG_HW_WATER_LEVEL_ADC1_CHANNEL_4,
-#endif
-#if CONFIG_HW_WATER_LEVEL_SENSOR_COUNT > 4
-    CONFIG_HW_WATER_LEVEL_ADC1_CHANNEL_5,
-#endif
-};
+#define HW_WATER_LEVEL_ADC1_CHANNEL CONFIG_HW_WATER_LEVEL_ADC1_CHANNEL
+#define HW_WATER_LEVEL_VALUE_LOW CONFIG_HW_WATER_LEVEL_VALUE_LOW
+#define HW_WATER_LEVEL_VALUE_HIGH CONFIG_HW_WATER_LEVEL_VALUE_HIGH
 
 #define IRRIGATION_EVERY_N_HOURS CONFIG_IRRIGATION_EVERY_N_HOURS
 #define IRRIGATION_MAX_LENGTH_SECONDS CONFIG_IRRIGATION_MAX_LENGTH_SECONDS
@@ -52,8 +37,9 @@ static httpd_handle_t httpd = NULL;
 static owb_rmt_driver_info owb_driver = {};
 static DS18B20_Info temperature_sensor = {};
 static float temperature_value = 0;
-static int soil_humidity_value = 0;
-static int water_level_values[HW_WATER_LEVEL_SENSOR_COUNT] = {};
+static int soil_humidity_raw = 0;
+static int water_level_raw = 0;
+static float soil_humidity = 0.0f;
 static float water_level = 0.0f;
 static bool valve_on = false;
 
@@ -113,13 +99,7 @@ void setup()
     // Soil humidity and water level sensor init
     ESP_ERROR_CHECK(adc1_config_width(ADC_WIDTH_BIT_12));
     ESP_ERROR_CHECK(adc1_config_channel_atten(HW_SOIL_SENSOR_ADC1_CHANNEL, ADC_ATTEN_DB_11)); // TODO attenuation?
-
-    for (size_t i = 0; i < HW_WATER_LEVEL_SENSOR_COUNT; i++)
-    {
-        assert(HW_WATER_LEVEL_ADC1_CHANNELS[i] >= 0);
-        assert(HW_WATER_LEVEL_ADC1_CHANNELS[i] < ADC1_CHANNEL_MAX);
-        ESP_ERROR_CHECK(adc1_config_channel_atten(HW_WATER_LEVEL_ADC1_CHANNELS[i], ADC_ATTEN_DB_11));
-    }
+    ESP_ERROR_CHECK(adc1_config_channel_atten(HW_WATER_LEVEL_ADC1_CHANNEL, ADC_ATTEN_DB_11));
 
     // Temperature sensor init
     owb_rmt_initialize(&owb_driver, HW_DS18B20_PIN, RMT_CHANNEL_0, RMT_CHANNEL_1);
@@ -174,6 +154,7 @@ _Noreturn void app_main()
 
         // Enable sensors
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_SENSOR_ENABLE_PIN, 1));
+        adc_power_acquire();
 
         // Read temperature
         ds18b20_convert_all(&owb_driver.bus);
@@ -185,29 +166,29 @@ _Noreturn void app_main()
             ESP_LOGW(TAG, "failed to read temperature: %d", ds_err);
         }
 
-        // Wait for sensors to stabilize (adds extra 100ms to the loop)
-        vTaskDelayUntil(&start, 100 / portTICK_PERIOD_MS);
+        // Wait for sensors to stabilize (adds extra time to the loop)
+        // TODO Kconfig constant
+        vTaskDelayUntil(&start, 200 / portTICK_PERIOD_MS);
 
         // Read soil humidity
-        soil_humidity_value = adc1_get_raw(HW_SOIL_SENSOR_ADC1_CHANNEL);
+        soil_humidity_raw = adc1_get_raw(HW_SOIL_SENSOR_ADC1_CHANNEL);
 
-        // Read water levels
-        float water_level_readout = 0.0f;
-        for (size_t i = 0; i < HW_WATER_LEVEL_SENSOR_COUNT; i++)
-        {
-            int x = water_level_values[i] = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNELS[i]);
-            if (x > HW_WATER_LEVEL_VALUE_THRESHOLD)
-            {
-                water_level_readout = (float)(i + 1) / (float)HW_WATER_LEVEL_SENSOR_COUNT;
-            }
-        }
-        water_level = water_level_readout;
+        // Read water level
+        water_level_raw = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNEL);
+
+        if (water_level_raw < HW_WATER_LEVEL_VALUE_LOW)
+            water_level = 0.0f;
+        else if (water_level_raw > HW_WATER_LEVEL_VALUE_HIGH)
+            water_level = 1.0f;
+        else
+            water_level = (float)(water_level_raw - HW_WATER_LEVEL_VALUE_LOW) / (HW_WATER_LEVEL_VALUE_HIGH - HW_WATER_LEVEL_VALUE_LOW);
 
         // Disable sensors
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_SENSOR_ENABLE_PIN, 0));
+        adc_power_release();
 
         // Log output
-        ESP_LOGI(TAG, "water: %.2f, soil: %d,\ttemperature: %.3f", water_level, soil_humidity_value, temperature_value);
+        ESP_LOGI(TAG, "water: %.2f (raw=%d),\tsoil: %.2f (raw=%d),\ttemperature: %.3f", water_level, water_level_raw, soil_humidity, soil_humidity_raw, temperature_value);
 
         // Trigger irrigation
         // NOTE this should be smarter, now it depends on loop execution
@@ -258,19 +239,18 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
     ptr = util_append(ptr, end, "esp_celsius{address=\"%s\",hardware=\"%s\",sensor=\"Ambient\"} %0.3f\n", temperature_address, name, temperature_value);
 
     // Soil
+    ptr = util_append(ptr, end, "# TYPE esp_humidity gauge\n");
+    ptr = util_append(ptr, end, "esp_humidity{hardware=\"%s\",sensor=\"Soil\"} %.2f\n", name, soil_humidity);
+
     ptr = util_append(ptr, end, "# TYPE esp_humidity_raw gauge\n");
-    ptr = util_append(ptr, end, "esp_humidity_raw{hardware=\"%s\",sensor=\"Soil\"} %d\n", name, soil_humidity_value);
-    // TODO provide normalized value
+    ptr = util_append(ptr, end, "esp_humidity_raw{hardware=\"%s\",sensor=\"Soil\"} %d\n", name, soil_humidity_raw);
 
     // Water level
-    ptr = util_append(ptr, end, "# TYPE esp_water_level_raw gauge\n");
-    for (size_t i = 0; i < HW_WATER_LEVEL_SENSOR_COUNT; i++)
-    {
-        ptr = util_append(ptr, end, "esp_water_level_raw{hardware=\"%s\",sensor=\"Pot %zu\"} %d\n", name, i, water_level_values[i]);
-    }
-
     ptr = util_append(ptr, end, "# TYPE esp_water_level gauge\n");
-    ptr = util_append(ptr, end, "esp_water_level{hardware=\"%s\",sensor=\"Pot\"} %.2f\n", name, water_level);
+    ptr = util_append(ptr, end, "esp_water_level{hardware=\"%s\"} %.2f\n", name, water_level);
+
+    ptr = util_append(ptr, end, "# TYPE esp_water_level_raw gauge\n");
+    ptr = util_append(ptr, end, "esp_water_level_raw{hardware=\"%s\"} %d\n", name, water_level_raw);
 
     // Valve
     ptr = util_append(ptr, end, "# TYPE esp_valve gauge\n");
