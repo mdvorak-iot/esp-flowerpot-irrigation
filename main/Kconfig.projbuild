@@ -65,13 +65,13 @@ menu "Hardware config"
 
     config HW_SOIL_SENSOR_ADC1_CHANNEL
         int "Soil humidity sensor ADC1 channel"
-        default 0
+        default 7
         help
             Look in docs, what channel corresponds to which pin.
 
     config HW_WATER_LEVEL_ADC1_CHANNEL
         int "Water level sensor ADC1 channel"
-        default 3
+        default 6
         help
             Look in docs, what channel corresponds to which pin.
 
@@ -83,7 +83,7 @@ menu "Hardware config"
 
     config HW_WATER_LEVEL_VALUE_HIGH
         int "Threshold for ADC raw value (0-4095)"
-        default 2800
+        default 2850
         help
             Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
 endmenu
