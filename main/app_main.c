@@ -38,6 +38,7 @@ static gpio_num_t hw_water_level_sensor_pin = GPIO_NUM_NC;
 static httpd_handle_t httpd = NULL;
 static owb_rmt_driver_info owb_driver = {};
 static DS18B20_Info temperature_sensor = {};
+static bool started = false;
 static float temperature_value = 0;
 static uint16_t soil_humidity_raw = 0;
 static int water_level_raw = 0;
@@ -108,14 +109,13 @@ void setup()
     ESP_ERROR_CHECK(gpio_set_direction(HW_VALVE_ENABLE_PIN, GPIO_MODE_OUTPUT));
     ESP_ERROR_CHECK(gpio_set_level(HW_VALVE_ENABLE_PIN, 0));
 
-    // Water level sensor
-    ESP_ERROR_CHECK(gpio_reset_pin(HW_WATER_SENSOR_ENABLE_PIN));
-    ESP_ERROR_CHECK(gpio_set_direction(HW_WATER_SENSOR_ENABLE_PIN, GPIO_MODE_OUTPUT));
-    ESP_ERROR_CHECK(gpio_set_level(HW_WATER_SENSOR_ENABLE_PIN, 0));
-
+    // Water level sensor (leave pins floating by default)
     ESP_ERROR_CHECK(adc1_config_width(ADC_WIDTH_BIT_12));
-    ESP_ERROR_CHECK(adc1_config_channel_atten(HW_WATER_LEVEL_ADC1_CHANNEL, ADC_ATTEN_DB_11));
     ESP_ERROR_CHECK(adc1_pad_get_io_num(HW_WATER_LEVEL_ADC1_CHANNEL, &hw_water_level_sensor_pin));
+
+    ESP_ERROR_CHECK(gpio_reset_pin(HW_WATER_SENSOR_ENABLE_PIN));
+    ESP_ERROR_CHECK(gpio_set_direction(HW_WATER_SENSOR_ENABLE_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_set_direction(hw_water_level_sensor_pin, GPIO_MODE_INPUT));
 
     // Soil humidity sensor
     ESP_ERROR_CHECK(touch_pad_init());
@@ -154,7 +154,6 @@ _Noreturn void app_main()
 
     // Wait for irrigation timeout for NTP sync - this implies working internet connection
     // NOTE this is needed, so valve is not turned on before wifi connection is made
-    // TODO don't wait, just don't open valve until time is known
     while (time(NULL) < IRRIGATION_MAX_LENGTH_SECONDS)
     {
         ESP_LOGI(TAG, "time=%ld", time(NULL));
@@ -183,17 +182,18 @@ _Noreturn void app_main()
             ESP_LOGW(TAG, "failed to read temperature: %d", ds_err);
         }
 
-        // Enable sensors
-        ESP_ERROR_CHECK_WITHOUT_ABORT(adc_gpio_init(ADC_UNIT_1, HW_WATER_LEVEL_ADC1_CHANNEL));
+        // Read soil humidity
+        ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read(HW_SOIL_SENSOR_TOUCH_PAD, &soil_humidity_raw));
+        soil_humidity = map_to_range((float)soil_humidity_raw, 50, 640, 1.0f, 0.0f); // TODO range config
+
+        // Enable sensor
+        ESP_ERROR_CHECK_WITHOUT_ABORT(adc1_config_channel_atten(HW_WATER_LEVEL_ADC1_CHANNEL, ADC_ATTEN_DB_11));
+        ESP_ERROR_CHECK(gpio_set_direction(HW_WATER_SENSOR_ENABLE_PIN, GPIO_MODE_OUTPUT));
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_ENABLE_PIN, 1));
 
         // Wait for sensors to stabilize
         // TODO Kconfig constant
         vTaskDelayUntil(&start, 200 / portTICK_PERIOD_MS);
-
-        // Read soil humidity
-        ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read(HW_SOIL_SENSOR_TOUCH_PAD, &soil_humidity_raw));
-        soil_humidity = map_to_range((float)soil_humidity_raw, 50, 700, 1.0f, 0.0f); // TODO range config
 
         // Read water level
         water_level_raw = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNEL);
@@ -226,6 +226,9 @@ _Noreturn void app_main()
             valve_on = false;
         }
 
+        // Values are valid
+        started = true;
+
         // Control valve
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_VALVE_ENABLE_PIN, valve_on ? 1 : 0));
 
@@ -243,8 +246,9 @@ _Noreturn void app_main()
         // TODO Kconfig constant
         vTaskDelay(200 / portTICK_PERIOD_MS);
 
-        // Restore - pin will be reset on next loop
-        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(hw_water_level_sensor_pin, 0));
+        // Leave it floating for better soil humidity precision
+        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(HW_WATER_SENSOR_ENABLE_PIN, GPIO_MODE_INPUT));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(hw_water_level_sensor_pin, GPIO_MODE_INPUT));
 
         // Throttle - must be last
         vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
@@ -255,7 +259,10 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
 {
     const char name[] = APP_DEVICE_NAME; // TODO dynamic from device config
 
-    // TODO return 500 error until first read
+    // Return 500 error until first read
+    if (!started) {
+        return httpd_resp_send_500(r);
+    }
 
     // Build metrics string
     char buf[1024] = {};
