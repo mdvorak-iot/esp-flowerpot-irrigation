@@ -119,6 +119,7 @@ void setup()
 
     // Soil humidity sensor
     ESP_ERROR_CHECK(touch_pad_init());
+    ESP_ERROR_CHECK(touch_pad_set_voltage(TOUCH_HVOLT_KEEP, TOUCH_LVOLT_KEEP, TOUCH_HVOLT_ATTEN_0V));
     ESP_ERROR_CHECK(touch_pad_config(HW_SOIL_SENSOR_TOUCH_PAD, 0));
 
     // Temperature sensor init
@@ -260,7 +261,8 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
     const char name[] = APP_DEVICE_NAME; // TODO dynamic from device config
 
     // Return 500 error until first read
-    if (!started) {
+    if (!started)
+    {
         return httpd_resp_send_500(r);
     }
 
