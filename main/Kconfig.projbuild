@@ -57,21 +57,21 @@ menu "Hardware config"
         int "Temperature sensors data pin"
         default 27
 
-    config HW_SENSOR_ENABLE_PIN
-        int "Power-up water level and soil humidity sensors pin"
+    config HW_WATER_SENSOR_ENABLE_PIN
+        int "Power-up water level sensors pin"
         default 25
         help
             Pin, which powers the water level and soil humidity sensors.
 
-    config HW_SOIL_SENSOR_ADC1_CHANNEL
-        int "Soil humidity sensor ADC1 channel"
-        default 7
+    config HW_WATER_LEVEL_ADC1_CHANNEL
+        int "Water level sensor ADC1 channel"
+        default 5
         help
             Look in docs, what channel corresponds to which pin.
 
-    config HW_WATER_LEVEL_ADC1_CHANNEL
-        int "Water level sensor ADC1 channel"
-        default 6
+    config HW_SOIL_SENSOR_TOUCH_PAD
+        int "Soil humidity sensor touch pad channel"
+        default 9
         help
             Look in docs, what channel corresponds to which pin.
 
@@ -96,3 +96,19 @@ endmenu
 # ADC1 channel 5 is GPIO33 (ESP32), GPIO6 (ESP32-S2)
 # ADC1 channel 6 is GPIO34 (ESP32), GPIO7 (ESP32-S2)
 # ADC1 channel 7 is GPIO35 (ESP32), GPIO8 (ESP32-S2)
+
+# Touch pad channel 0 is GPIO4(ESP32)
+# Touch pad channel 1 is GPIO0(ESP32) / GPIO1(ESP32-S2)
+# Touch pad channel 2 is GPIO2(ESP32) / GPIO2(ESP32-S2)
+# Touch pad channel 3 is GPIO15(ESP32) / GPIO3(ESP32-S2)
+# Touch pad channel 4 is GPIO13(ESP32) / GPIO4(ESP32-S2)
+# Touch pad channel 5 is GPIO12(ESP32) / GPIO5(ESP32-S2)
+# Touch pad channel 6 is GPIO14(ESP32) / GPIO6(ESP32-S2)
+# Touch pad channel 7 is GPIO27(ESP32) / GPIO7(ESP32-S2)
+# Touch pad channel 8 is GPIO33(ESP32) / GPIO8(ESP32-S2)
+# Touch pad channel 9 is GPIO32(ESP32) / GPIO9(ESP32-S2)
+# Touch pad channel 10 is GPIO10(ESP32-S2)
+# Touch pad channel 11 is GPIO11(ESP32-S2)
+# Touch pad channel 12 is GPIO12(ESP32-S2)
+# Touch pad channel 13 is GPIO13(ESP32-S2)
+# Touch pad channel 14 is GPIO14(ESP32-S2)
