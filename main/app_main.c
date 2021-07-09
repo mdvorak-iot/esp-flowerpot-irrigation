@@ -25,6 +25,8 @@
 #define HW_WATER_LEVEL_ADC1_CHANNEL CONFIG_HW_WATER_LEVEL_ADC1_CHANNEL
 #define HW_WATER_LEVEL_VALUE_LOW CONFIG_HW_WATER_LEVEL_VALUE_LOW
 #define HW_WATER_LEVEL_VALUE_HIGH CONFIG_HW_WATER_LEVEL_VALUE_HIGH
+// TODO Kconfig constant
+#define HW_WATER_SENSOR_DELAY_MS 200
 
 #define IRRIGATION_EVERY_N_HOURS CONFIG_IRRIGATION_EVERY_N_HOURS
 #define IRRIGATION_MAX_LENGTH_SECONDS CONFIG_IRRIGATION_MAX_LENGTH_SECONDS
@@ -193,8 +195,7 @@ _Noreturn void app_main()
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_ENABLE_PIN, 1));
 
         // Wait for sensors to stabilize
-        // TODO Kconfig constant
-        vTaskDelayUntil(&start, 200 / portTICK_PERIOD_MS);
+        vTaskDelayUntil(&start, HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
 
         // Read water level
         water_level_raw = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNEL);
@@ -237,15 +238,13 @@ _Noreturn void app_main()
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_ENABLE_PIN, 0));
 
         // Discharge capacitor
-        // TODO Kconfig constant
-        vTaskDelay(200 / portTICK_PERIOD_MS);
+        vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
 
         // Switch polarity for a while
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(hw_water_level_sensor_pin, GPIO_MODE_OUTPUT));
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(hw_water_level_sensor_pin, 1));
 
-        // TODO Kconfig constant
-        vTaskDelay(200 / portTICK_PERIOD_MS);
+        vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
 
         // Leave it floating for better soil humidity precision
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(HW_WATER_SENSOR_ENABLE_PIN, GPIO_MODE_INPUT));
