@@ -169,10 +169,9 @@ _Noreturn void app_main()
     // NOTE this is needed, so valve is not turned on before wifi connection is made
     while (time(NULL) < IRRIGATION_MAX_LENGTH_SECONDS)
     {
-        ESP_LOGI(TAG, "time=%ld", time(NULL));
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
-    ESP_LOGI(TAG, "time=%ld", time(NULL));
+    ESP_LOGI(TAG, "synced time=%ld", time(NULL));
 
     // Read values continuously
     TickType_t start = xTaskGetTickCount();
