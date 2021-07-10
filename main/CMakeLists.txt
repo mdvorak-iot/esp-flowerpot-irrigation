@@ -22,3 +22,5 @@ idf_component_register(
         esp32-owb
         esp32-ds18b20
 )
+
+target_link_libraries(${COMPONENT_LIB} PRIVATE ccronexpr)

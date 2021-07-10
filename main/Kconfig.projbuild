@@ -21,11 +21,11 @@ menu "Application config"
 endmenu
 
 menu "Irrigation control"
-    config IRRIGATION_EVERY_N_HOURS
-        int "Irrigation every N hours"
-        default 2
+    config IRRIGATION_CRON_EXPRESSION
+        string "Irrigation CRON expression"
+        default "10 0 */2 * * ?"
         help
-            Irrigation is started always at full hour (zero minutes).
+            Standard CRON expression, in format "s h m d M wd".
 
     config IRRIGATION_MAX_LENGTH_SECONDS
         int "Irrigation maximum length, in seconds"

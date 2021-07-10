@@ -5,3 +5,6 @@ list(APPEND EXTRA_COMPONENT_DIRS ${CMAKE_CURRENT_LIST_DIR}/rainmaker/components)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(esp-flowerpot-irrigation)
+
+set(CRON_USE_LOCAL_TIME ON)
+add_subdirectory(libs/ccronexpr)

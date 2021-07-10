@@ -1,5 +1,6 @@
 #include "app_status.h"
 #include <app_wifi.h>
+#include <ccronexpr.h>
 #include <double_reset.h>
 #include <driver/adc_common.h>
 #include <driver/touch_sensor.h>
@@ -28,7 +29,7 @@
 // TODO Kconfig constant
 #define HW_WATER_SENSOR_DELAY_MS 200
 
-#define IRRIGATION_EVERY_N_HOURS CONFIG_IRRIGATION_EVERY_N_HOURS
+#define IRRIGATION_CRON_EXPRESSION CONFIG_IRRIGATION_CRON_EXPRESSION
 #define IRRIGATION_MAX_LENGTH_SECONDS CONFIG_IRRIGATION_MAX_LENGTH_SECONDS
 #define IRRIGATION_WATER_LEVEL_LOW_PERCENT CONFIG_IRRIGATION_WATER_LEVEL_LOW_PERCENT
 #define IRRIGATION_WATER_LEVEL_HIGH_PERCENT CONFIG_IRRIGATION_WATER_LEVEL_HIGH_PERCENT
@@ -40,6 +41,7 @@ static gpio_num_t hw_water_level_sensor_pin = GPIO_NUM_NC;
 static httpd_handle_t httpd = NULL;
 static owb_rmt_driver_info owb_driver = {};
 static DS18B20_Info temperature_sensor = {};
+static cron_expr irrigation_cron = {};
 static bool started = false;
 static float temperature_value = 0;
 static uint16_t soil_humidity_raw = 0;
@@ -68,11 +70,11 @@ static float map_to_range(float x, float in_min, float in_max, float out_min, fl
 
 static bool can_irrigate(time_t t)
 {
-    struct tm now = {};
-    localtime_r(&t, &now);
+    // Find previous start
+    time_t prev_start = cron_prev(&irrigation_cron, t);
 
-    int hours_secs = now.tm_min * 60 + now.tm_sec;
-    return (now.tm_hour % IRRIGATION_EVERY_N_HOURS) == 0 && hours_secs >= 0 && hours_secs < IRRIGATION_MAX_LENGTH_SECONDS;
+    // If it is less then interval, let the water flow!
+    return (t - prev_start) < IRRIGATION_MAX_LENGTH_SECONDS;
 }
 
 void setup()
@@ -93,6 +95,14 @@ void setup()
     // NOTE this should be called as soon as possible, ideally right after nvs init
     bool reconfigure = false;
     ESP_ERROR_CHECK_WITHOUT_ABORT(double_reset_start(&reconfigure, DOUBLE_RESET_DEFAULT_TIMEOUT));
+
+    // Parse cron
+    const char *cron_err = NULL;
+    cron_parse_expr(IRRIGATION_CRON_EXPRESSION, &irrigation_cron, &cron_err);
+    if (cron_err)
+    {
+        ESP_LOGE(TAG, "failed to parse cron '" IRRIGATION_CRON_EXPRESSION "'");
+    }
 
     // Setup
     app_status_init();
