@@ -1266,7 +1266,7 @@ CONFIG_APP_WIFI_QRCODE_URL="https://espressif.github.io/esp-jumpstart/qrcode.htm
 #
 # esp-button
 #
-CONFIG_BUTTON_DEBOUNCE_MS=50
+CONFIG_BUTTON_DEBOUNCE_MS=100
 CONFIG_BUTTON_LONG_PRESS_ENABLE=y
 # CONFIG_BUTTON_ISR_IN_IRAM is not set
 # end of esp-button
