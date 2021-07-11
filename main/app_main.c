@@ -19,15 +19,14 @@
 #define APP_DEVICE_NAME CONFIG_APP_DEVICE_NAME
 #define APP_CONTROL_LOOP_INTERVAL CONFIG_APP_CONTROL_LOOP_INTERVAL
 
-#define HW_VALVE_ENABLE_PIN CONFIG_HW_VALVE_ENABLE_PIN
+#define HW_VALVE_POWER_PIN CONFIG_HW_VALVE_POWER_PIN
 #define HW_DS18B20_PIN CONFIG_HW_DS18B20_PIN
-#define HW_SOIL_SENSOR_TOUCH_PAD CONFIG_HW_SOIL_SENSOR_TOUCH_PAD
-#define HW_WATER_SENSOR_ENABLE_PIN CONFIG_HW_WATER_SENSOR_ENABLE_PIN
+#define HW_SOIL_PROBE_TOUCH_PAD CONFIG_HW_SOIL_PROBE_TOUCH_PAD
+#define HW_WATER_SENSOR_POWER_PIN CONFIG_HW_WATER_LEVEL_POWER_PIN
 #define HW_WATER_LEVEL_ADC1_CHANNEL CONFIG_HW_WATER_LEVEL_ADC1_CHANNEL
-#define HW_WATER_LEVEL_VALUE_LOW CONFIG_HW_WATER_LEVEL_VALUE_LOW
-#define HW_WATER_LEVEL_VALUE_HIGH CONFIG_HW_WATER_LEVEL_VALUE_HIGH
-// TODO Kconfig constant
-#define HW_WATER_SENSOR_DELAY_MS 200
+#define HW_WATER_LEVEL_LOW CONFIG_HW_WATER_LEVEL_LOW
+#define HW_WATER_LEVEL_HIGH CONFIG_HW_WATER_LEVEL_HIGH
+#define HW_WATER_SENSOR_DELAY_MS CONFIG_HW_WATER_LEVEL_DELAY_MS
 
 #define IRRIGATION_CRON_EXPRESSION CONFIG_IRRIGATION_CRON_EXPRESSION
 #define IRRIGATION_MAX_LENGTH_SECONDS CONFIG_IRRIGATION_MAX_LENGTH_SECONDS
@@ -117,22 +116,22 @@ void setup()
     ESP_ERROR_CHECK(app_wifi_print_qr_code_handler_register(NULL));
 
     // Valve
-    ESP_ERROR_CHECK(gpio_reset_pin(HW_VALVE_ENABLE_PIN));
-    ESP_ERROR_CHECK(gpio_set_direction(HW_VALVE_ENABLE_PIN, GPIO_MODE_OUTPUT));
-    ESP_ERROR_CHECK(gpio_set_level(HW_VALVE_ENABLE_PIN, 0));
+    ESP_ERROR_CHECK(gpio_reset_pin(HW_VALVE_POWER_PIN));
+    ESP_ERROR_CHECK(gpio_set_direction(HW_VALVE_POWER_PIN, GPIO_MODE_OUTPUT));
+    ESP_ERROR_CHECK(gpio_set_level(HW_VALVE_POWER_PIN, 0));
 
     // Water level sensor (leave pins floating by default)
     ESP_ERROR_CHECK(adc1_config_width(ADC_WIDTH_BIT_12));
     ESP_ERROR_CHECK(adc1_pad_get_io_num(HW_WATER_LEVEL_ADC1_CHANNEL, &hw_water_level_sensor_pin));
 
-    ESP_ERROR_CHECK(gpio_reset_pin(HW_WATER_SENSOR_ENABLE_PIN));
-    ESP_ERROR_CHECK(gpio_set_direction(HW_WATER_SENSOR_ENABLE_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_reset_pin(HW_WATER_SENSOR_POWER_PIN));
+    ESP_ERROR_CHECK(gpio_set_direction(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_INPUT));
     ESP_ERROR_CHECK(gpio_set_direction(hw_water_level_sensor_pin, GPIO_MODE_INPUT));
 
     // Soil humidity sensor
     ESP_ERROR_CHECK(touch_pad_init());
     ESP_ERROR_CHECK(touch_pad_set_voltage(TOUCH_HVOLT_KEEP, TOUCH_LVOLT_KEEP, TOUCH_HVOLT_ATTEN_0V));
-    ESP_ERROR_CHECK(touch_pad_config(HW_SOIL_SENSOR_TOUCH_PAD, 0));
+    ESP_ERROR_CHECK(touch_pad_config(HW_SOIL_PROBE_TOUCH_PAD, 0));
 
     // Temperature sensor init
     owb_rmt_initialize(&owb_driver, HW_DS18B20_PIN, RMT_CHANNEL_0, RMT_CHANNEL_1);
@@ -195,20 +194,20 @@ _Noreturn void app_main()
         }
 
         // Read soil humidity
-        ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read(HW_SOIL_SENSOR_TOUCH_PAD, &soil_humidity_raw));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read(HW_SOIL_PROBE_TOUCH_PAD, &soil_humidity_raw));
         soil_humidity = map_to_range((float)soil_humidity_raw, 50, 640, 1.0f, 0.0f); // TODO range config
 
         // Enable sensor
         ESP_ERROR_CHECK_WITHOUT_ABORT(adc1_config_channel_atten(HW_WATER_LEVEL_ADC1_CHANNEL, ADC_ATTEN_DB_11));
-        ESP_ERROR_CHECK(gpio_set_direction(HW_WATER_SENSOR_ENABLE_PIN, GPIO_MODE_OUTPUT));
-        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_ENABLE_PIN, 1));
+        ESP_ERROR_CHECK(gpio_set_direction(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_OUTPUT));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 1));
 
         // Wait for sensors to stabilize
         vTaskDelayUntil(&start, HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
 
         // Read water level
         water_level_raw = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNEL);
-        water_level = map_to_range((float)water_level_raw, HW_WATER_LEVEL_VALUE_LOW, HW_WATER_LEVEL_VALUE_HIGH, 0.0f, 1.0f);
+        water_level = map_to_range((float)water_level_raw, HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 0.0f, 1.0f);
 
         // Log output
         ESP_LOGI(TAG, "water: %.2f (raw=%d),\tsoil: %.2f (raw=%d),\ttemperature: %.3f", water_level, water_level_raw, soil_humidity, soil_humidity_raw, temperature_value);
@@ -241,10 +240,10 @@ _Noreturn void app_main()
         started = true;
 
         // Control valve
-        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_VALVE_ENABLE_PIN, valve_on ? 1 : 0));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_VALVE_POWER_PIN, valve_on ? 1 : 0));
 
         // Disable water sensor
-        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_ENABLE_PIN, 0));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 0));
 
         // Discharge capacitor
         vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
@@ -256,7 +255,7 @@ _Noreturn void app_main()
         vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
 
         // Leave it floating for better soil humidity precision
-        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(HW_WATER_SENSOR_ENABLE_PIN, GPIO_MODE_INPUT));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_INPUT));
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(hw_water_level_sensor_pin, GPIO_MODE_INPUT));
 
         // Throttle - must be last

@@ -20,7 +20,98 @@ menu "Application config"
         default "cz.pool.ntp.org"
 endmenu
 
+menu "Hardware config"
+    menuconfig HW_VALVE_ENABLE
+        bool "Water Valve"
+        default y
+
+    config HW_VALVE_POWER_PIN
+        depends on HW_VALVE_ENABLE
+        int "Valve power pin"
+        default 26
+        help
+            Open normally closed valve pin.
+
+    menuconfig HW_DS18B20_ENABLE
+        bool "Temperature Sensor"
+        default y
+
+    config HW_DS18B20_PIN
+        depends on HW_DS18B20_ENABLE
+        int "Temperature sensors data pin"
+        default 27
+
+    menuconfig HW_SOIL_PROBE_ENABLE
+        bool "Soil Probe"
+        default y
+
+    config HW_SOIL_PROBE_TOUCH_PAD
+        depends on HW_SOIL_PROBE_ENABLE
+        int "Soil humidity sensor touch pad channel"
+        default 9
+        help
+            Look in docs, what channel corresponds to which pin.
+
+    menuconfig HW_WATER_LEVEL_ENABLE
+        bool "Water Level Sensor"
+        default y
+
+    config HW_WATER_LEVEL_POWER_PIN
+        depends on HW_WATER_LEVEL_ENABLE
+        int "Power-up water level sensors pin"
+        default 25
+        help
+            Pin, which powers the water level and soil humidity sensors.
+
+    config HW_WATER_LEVEL_DELAY_MS
+        depends on HW_WATER_LEVEL_ENABLE
+        int "Delay to stabilize water-level sensor readouts."
+        default 200
+        help
+            Delay after sensor power-up or any other manipulation, to charge
+            capacitors and provide stable reading.
+
+    config HW_WATER_LEVEL_ADC1_CHANNEL
+        depends on HW_WATER_LEVEL_ENABLE
+        int "Water level sensor ADC1 channel"
+        default 5
+        help
+            Look in docs, what channel corresponds to which pin.
+
+    config HW_WATER_LEVEL_MIN
+        depends on HW_WATER_LEVEL_ENABLE
+        int "Minimal allowed value for ADC raw readout (0-4095)"
+        default 1000
+        help
+            Lower value than this is considered invalid and ignored.
+            Irrigation is disabled for invalid values.
+
+    config HW_WATER_LEVEL_MAX
+        depends on HW_WATER_LEVEL_ENABLE
+        int "Maximal allowed value for ADC raw readout (0-4095)"
+        default 3500
+        help
+            Higher value than this is considered invalid and ignored.
+            Irrigation is disabled for invalid values.
+
+    config HW_WATER_LEVEL_LOW
+        depends on HW_WATER_LEVEL_ENABLE
+        int "Low threshold for ADC raw value (0-4095)"
+        default 1500
+        help
+            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
+
+    config HW_WATER_LEVEL_HIGH
+        depends on HW_WATER_LEVEL_ENABLE
+        int "Threshold for ADC raw value (0-4095)"
+        default 2850
+        help
+            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
+endmenu
+
 menu "Irrigation control"
+    depends on HW_VALVE_ENABLE
+
     config IRRIGATION_CRON_EXPRESSION
         string "Irrigation CRON expression"
         default "10 0 */2 * * ?"
@@ -34,58 +125,21 @@ menu "Irrigation control"
             Irrigation is stopped after given number of seconds, even if high water threshold is not met.
 
     config IRRIGATION_WATER_LEVEL_LOW_PERCENT
-        int "Low-water level threshold (percent)"
+        depends on HW_WATER_LEVEL_ENABLE
+        int "Low-water level threshold (0-100)"
         default 0
         help
             Irrigation won't start, if water does not fall below this value.
 
     config IRRIGATION_WATER_LEVEL_HIGH_PERCENT
-        int "High-water level threshold (percent)"
+        depends on HW_WATER_LEVEL_ENABLE
+        int "High-water level threshold (0-100)"
         default 100
         help
             Irrigation will stop at this water level.
-endmenu
 
-menu "Hardware config"
-    config HW_VALVE_ENABLE_PIN
-        int "Valve enable pin"
-        default 26
-        help
-            Open normally closed valve pin
-
-    config HW_DS18B20_PIN
-        int "Temperature sensors data pin"
-        default 27
-
-    config HW_WATER_SENSOR_ENABLE_PIN
-        int "Power-up water level sensors pin"
-        default 25
-        help
-            Pin, which powers the water level and soil humidity sensors.
-
-    config HW_WATER_LEVEL_ADC1_CHANNEL
-        int "Water level sensor ADC1 channel"
-        default 5
-        help
-            Look in docs, what channel corresponds to which pin.
-
-    config HW_SOIL_SENSOR_TOUCH_PAD
-        int "Soil humidity sensor touch pad channel"
-        default 9
-        help
-            Look in docs, what channel corresponds to which pin.
-
-    config HW_WATER_LEVEL_VALUE_LOW
-        int "Low threshold for ADC raw value (0-4095)"
-        default 1500
-        help
-            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
-
-    config HW_WATER_LEVEL_VALUE_HIGH
-        int "Threshold for ADC raw value (0-4095)"
-        default 2850
-        help
-            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
+    comment "Water level sensor disabled, irrigation will be started on given schedule, without any conditions"
+        depends on !HW_WATER_LEVEL_ENABLE
 endmenu
 
 # ADC1 channel 0 is GPIO36 (ESP32), GPIO1 (ESP32-S2)
