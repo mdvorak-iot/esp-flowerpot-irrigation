@@ -24,3 +24,4 @@ idf_component_register(
 )
 
 target_link_libraries(${COMPONENT_LIB} PRIVATE ccronexpr)
+target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual) # -Wconversion
