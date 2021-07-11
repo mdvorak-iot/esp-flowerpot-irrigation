@@ -19,6 +19,7 @@ idf_component_register(
         status_led
         wifi_reconnect
         app_wifi
+        button
         esp32-owb
         esp32-ds18b20
 )

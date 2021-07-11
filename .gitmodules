@@ -19,3 +19,6 @@
 [submodule "libs/ccronexpr"]
 	path = libs/ccronexpr
 	url = https://github.com/mdvorak/ccronexpr.git
+[submodule "components/button"]
+	path = components/button
+	url = https://github.com/mdvorak-iot/esp-button.git

@@ -142,7 +142,6 @@ menu "Hardware config"
             Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095).
             0% water level is anything below this value.
 
-
     config HW_WATER_LEVEL_HIGH
         depends on HW_WATER_LEVEL_ENABLE
         int "Threshold for 100% water level (0-4095)"

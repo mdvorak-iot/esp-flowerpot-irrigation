@@ -138,6 +138,7 @@ CONFIG_APP_NTP_SERVER="cz.pool.ntp.org"
 #
 # Hardware config
 #
+CONFIG_HW_BUTTON_PIN=3
 CONFIG_HW_VALVE_ENABLE=y
 CONFIG_HW_VALVE_POWER_PIN=13
 # CONFIG_HW_DS18B20_ENABLE is not set
@@ -1252,6 +1253,14 @@ CONFIG_APP_WIFI_PROV_TIMEOUT_S=120
 CONFIG_APP_WIFI_PROV_TRANSPORT="ble"
 CONFIG_APP_WIFI_QRCODE_URL="https://espressif.github.io/esp-jumpstart/qrcode.html"
 # end of Application WiFi
+
+#
+# esp-button
+#
+CONFIG_BUTTON_DEBOUNCE_MS=50
+CONFIG_BUTTON_LONG_PRESS_ENABLE=y
+# CONFIG_BUTTON_ISR_IN_IRAM is not set
+# end of esp-button
 
 #
 # Double reset

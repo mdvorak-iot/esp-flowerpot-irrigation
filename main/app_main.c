@@ -1,5 +1,6 @@
 #include "app_status.h"
 #include <app_wifi.h>
+#include <button.h>
 #include <double_reset.h>
 #include <esp_http_server.h>
 #include <esp_log.h>
@@ -176,6 +177,15 @@ void setup()
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MAX_MODEM));
     ESP_ERROR_CHECK(wifi_reconnect_start());
     ESP_ERROR_CHECK(app_wifi_print_qr_code_handler_register(NULL));
+
+    // Button
+    struct button_config switch_cfg = {
+        .pin = HW_BUTTON_PIN,
+        .long_press_ms = 3000,
+        .level = BUTTON_LEVEL_LOW_ON_PRESS,
+        .internal_pull = true, // TODO
+    };
+    ESP_ERROR_CHECK(button_config(&switch_cfg, NULL));
 
     // Valve
 #if HW_VALVE_ENABLE
