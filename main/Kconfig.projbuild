@@ -9,7 +9,7 @@ menu "Application config"
 
     config APP_CONTROL_LOOP_INTERVAL
         int "Main control loop interval in ms"
-        default 10000
+        default 5000
 
     config APP_NTP_TZ
         string "TimeZone string"
