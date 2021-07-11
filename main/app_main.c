@@ -29,10 +29,18 @@
 
 #define HW_VALVE_ENABLE CONFIG_HW_VALVE_ENABLE
 #define HW_VALVE_POWER_PIN CONFIG_HW_VALVE_POWER_PIN
+
 #define HW_DS18B20_ENABLE CONFIG_HW_DS18B20_ENABLE
 #define HW_DS18B20_PIN CONFIG_HW_DS18B20_PIN
+
 #define HW_SOIL_PROBE_ENABLE CONFIG_HW_SOIL_PROBE_ENABLE
 #define HW_SOIL_PROBE_TOUCH_PAD CONFIG_HW_SOIL_PROBE_TOUCH_PAD
+// TODO Kconfig
+#define HW_SOIL_PROBE_MIN 20
+#define HW_SOIL_PROBE_MAX 800
+#define HW_SOIL_PROBE_LOW 650
+#define HW_SOIL_PROBE_HIGH 120
+
 #define HW_WATER_LEVEL_ENABLE CONFIG_HW_WATER_LEVEL_ENABLE
 #define HW_WATER_SENSOR_POWER_PIN CONFIG_HW_WATER_LEVEL_POWER_PIN
 #define HW_WATER_LEVEL_ADC1_CHANNEL CONFIG_HW_WATER_LEVEL_ADC1_CHANNEL
@@ -62,6 +70,7 @@ static float temperature_value = 0;
 static cron_expr irrigation_cron = {};
 #endif
 #if HW_SOIL_PROBE_ENABLE
+static bool soil_humidity_valid = false;
 static uint16_t soil_humidity_raw = 0;
 static float soil_humidity = 0.0f;
 #endif
@@ -119,9 +128,9 @@ static void log_next_irrigation(time_t now)
 #endif
 
 #if HW_WATER_LEVEL_ENABLE
-static bool is_water_level_valid(int raw)
+static bool is_in_range(int val, int min, int max)
 {
-    return (raw >= HW_WATER_LEVEL_MIN) && (raw <= HW_WATER_LEVEL_MAX);
+    return (val >= min) && (val <= max);
 }
 #endif
 
@@ -259,8 +268,19 @@ _Noreturn void app_main()
 
         // Read soil humidity
 #if HW_SOIL_PROBE_ENABLE
-        ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read(HW_SOIL_PROBE_TOUCH_PAD, &soil_humidity_raw));
-        soil_humidity = map_to_range((float)soil_humidity_raw, 50, 640, 1.0f, 0.0f); // TODO range config
+        uint16_t soil_humidity_readout = 0;
+        ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read(HW_SOIL_PROBE_TOUCH_PAD, &soil_humidity_readout));
+
+        if (is_in_range(water_level_readout, HW_SOIL_PROBE_MIN, HW_SOIL_PROBE_MAX))
+        {
+            soil_humidity_raw = soil_humidity_readout;
+            soil_humidity = map_to_range((float)soil_humidity_raw, HW_SOIL_PROBE_LOW, HW_SOIL_PROBE_HIGH, 0.0f, 1.0f);
+            soil_humidity_valid = true; // update state before flipping to true
+        }
+        else
+        {
+            soil_humidity_valid = false;
+        }
 #endif
 
         // Enable water-level sensor
@@ -275,7 +295,7 @@ _Noreturn void app_main()
         // Read water level
         int water_level_readout = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNEL);
 
-        if (is_water_level_valid(water_level_readout))
+        if (is_in_range(water_level_readout, HW_WATER_LEVEL_MIN, HW_WATER_LEVEL_MAX))
         {
             water_level_raw = water_level_readout;
             water_level = map_to_range((float)water_level_raw, HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 0.0f, 1.0f);
@@ -388,11 +408,14 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
 
     // Soil
 #if HW_SOIL_PROBE_ENABLE
-    ptr = util_append(ptr, end, "# TYPE esp_humidity gauge\n");
-    ptr = util_append(ptr, end, "esp_humidity{hardware=\"%s\",sensor=\"Soil\"} %.2f\n", name, soil_humidity);
+    if (soil_humidity_valid)
+    {
+        ptr = util_append(ptr, end, "# TYPE esp_humidity gauge\n");
+        ptr = util_append(ptr, end, "esp_humidity{hardware=\"%s\",sensor=\"Soil\"} %.2f\n", name, soil_humidity);
 
-    ptr = util_append(ptr, end, "# TYPE esp_humidity_raw gauge\n");
-    ptr = util_append(ptr, end, "esp_humidity_raw{hardware=\"%s\",sensor=\"Soil\"} %d\n", name, soil_humidity_raw);
+        ptr = util_append(ptr, end, "# TYPE esp_humidity_raw gauge\n");
+        ptr = util_append(ptr, end, "esp_humidity_raw{hardware=\"%s\",sensor=\"Soil\"} %d\n", name, soil_humidity_raw);
+    }
 #endif
 
     // Water level
