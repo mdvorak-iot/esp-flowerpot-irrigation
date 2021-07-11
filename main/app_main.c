@@ -103,6 +103,18 @@ static bool can_irrigate(time_t t)
     // If it is less then interval, let the water flow!
     return (t - prev_start) < IRRIGATION_MAX_LENGTH_SECONDS;
 }
+
+static void log_next_irrigation(time_t now)
+{
+    time_t next_start = cron_next(&irrigation_cron, now);
+    struct tm next_start_tm = {};
+    localtime_r(&next_start, &next_start_tm);
+
+    char s[51] = {};
+    strftime(s, 50, "%x %X %z", &next_start_tm);
+
+    ESP_LOGI(TAG, "next irrigation starts on %s", s);
+}
 #endif
 
 void setup()
@@ -211,6 +223,7 @@ _Noreturn void app_main()
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
     ESP_LOGI(TAG, "synced time=%ld", time(NULL));
+    log_next_irrigation(time(NULL));
 #endif
 
     // Read values continuously
@@ -277,6 +290,7 @@ _Noreturn void app_main()
             }
 #else
             ESP_LOGW(TAG, "turning on the valve unconditionally, according to schedule");
+            log_next_irrigation(time(NULL));
             valve_on = true;
 #endif
         }
@@ -284,6 +298,7 @@ _Noreturn void app_main()
         {
             // Turn off the valve
             ESP_LOGW(TAG, "turning off the valve because of time-out");
+            log_next_irrigation(time(NULL));
             valve_on = false;
         }
 
