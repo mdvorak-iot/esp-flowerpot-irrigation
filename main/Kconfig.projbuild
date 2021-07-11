@@ -21,15 +21,31 @@ menu "Application config"
 endmenu
 
 menu "Hardware config"
-    config HW_BUTTON_PIN
-        int "Switch button pin"
-        default 19
-        help
-            Start/stop irrigation, wifi provision and factory reset.
+    menu "Switch button"
+        config HW_BUTTON_PIN
+            int "Switch button pin"
+            default 19
+            help
+                Start/stop irrigation, wifi provision and factory reset.
+
+        config HW_BUTTON_LEVEL
+            int  "Switch button pressed level"
+            default 0
+            help
+                0 for low-on-push, 1 for high-on-push.
+
+        config HW_BUTTON_PULL
+            bool "Switch button internal pull resistor"
+            default y
+
+        config HW_BUTTON_LONG_PRESS_MS
+            int "Switch button long-press interval"
+            default 3000
+    endmenu
 
     # Valve
     menuconfig HW_VALVE_ENABLE
-        bool "Water Valve"
+        bool "Water valve"
         default y
 
     config HW_VALVE_POWER_PIN
@@ -41,7 +57,7 @@ menu "Hardware config"
 
     # Temperature
     menuconfig HW_DS18B20_ENABLE
-        bool "Temperature Sensor"
+        bool "Temperature sensor"
         default y
 
     config HW_DS18B20_PIN
@@ -93,7 +109,7 @@ menu "Hardware config"
 
     # Water level sensor
     menuconfig HW_WATER_LEVEL_ENABLE
-        bool "Water Level Sensor"
+        bool "Water level sensor"
         default y
 
     config HW_WATER_LEVEL_POWER_PIN
