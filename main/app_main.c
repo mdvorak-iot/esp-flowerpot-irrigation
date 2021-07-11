@@ -29,6 +29,7 @@
 static const char DRAM_ATTR TAG[] = "app_main";
 
 // State
+static volatile bool running = true;
 static httpd_handle_t httpd = NULL;
 #if HW_DS18B20_ENABLE
 static owb_rmt_driver_info owb_driver = {};
@@ -208,7 +209,7 @@ void setup()
     ESP_LOGI(TAG, "setup complete");
 }
 
-_Noreturn void app_main()
+void app_main()
 {
     setup();
 
@@ -226,7 +227,7 @@ _Noreturn void app_main()
     // Read values continuously
     TickType_t start = xTaskGetTickCount();
 
-    for (;;)
+    while (running)
     {
         // Simple status led (don't overwrite connecting states)
         if (!status_led_is_active(STATUS_LED_DEFAULT))
@@ -359,10 +360,42 @@ _Noreturn void app_main()
     }
 }
 
-static void factory_reset()
+static void factory_reset(__unused void *arg)
 {
-    ESP_DRAM_LOGW(TAG, "factory-reset");
-    // TODO reformat NVS and restart
+    ESP_LOGW(TAG, "factory reset");
+
+    // Stop main loop
+    running = false;
+
+    // Shut down water
+#if IRRIGATION_ENABLE
+    valve_on = false;
+    ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_VALVE_POWER_PIN, 0));
+#endif
+
+    // Erase flash
+    ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_flash_erase());
+
+    // Restart
+    esp_restart();
+}
+
+static void provision_wifi(__unused void *arg)
+{
+    // Stop main loop
+    running = false;
+
+    // Shut down water
+#if IRRIGATION_ENABLE
+    valve_on = false;
+    ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_VALVE_POWER_PIN, 0));
+#endif
+
+    // Set provision flag
+    ESP_ERROR_CHECK_WITHOUT_ABORT(double_reset_set(true));
+
+    // Restart
+    esp_restart();
 }
 
 static void button_handler(__unused void *arg, const struct button_data *data)
@@ -373,14 +406,15 @@ static void button_handler(__unused void *arg, const struct button_data *data)
         if (data->press_length_ms > 10000) // TODO constant
         {
             // Factory reset
-            // TODO start in separate task
-            factory_reset();
+            // NOTE don't do this from ISR
+            xTaskCreate(factory_reset, DRAM_STR("factory"), 1000, NULL, 1, NULL);
         }
     }
     else if (data->long_press)
     {
         // Long-press
-        // TODO store double-reset flag and reset in separate task
+        // NOTE don't do this from ISR
+        xTaskCreate(provision_wifi, DRAM_STR("wifi_prov"), 1000, NULL, 1, NULL);
     }
 #if IRRIGATION_ENABLE
     else
