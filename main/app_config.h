@@ -1,4 +1,5 @@
 #pragma once
+#include "sdkconfig.h"
 
 #define APP_DEVICE_NAME CONFIG_APP_DEVICE_NAME
 #define APP_CONTROL_LOOP_INTERVAL CONFIG_APP_CONTROL_LOOP_INTERVAL
