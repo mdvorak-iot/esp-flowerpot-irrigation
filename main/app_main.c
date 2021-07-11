@@ -135,7 +135,7 @@ void setup()
     cron_parse_expr(IRRIGATION_CRON_EXPRESSION, &irrigation_cron, &cron_err);
     if (cron_err)
     {
-        ESP_LOGE(TAG, "failed to parse cron '" IRRIGATION_CRON_EXPRESSION "'");
+        ESP_LOGE(TAG, "failed to parse cron '%s'", IRRIGATION_CRON_EXPRESSION);
     }
 #endif
 
@@ -219,6 +219,8 @@ void app_main()
     setup();
 
 #if IRRIGATION_ENABLE
+    ESP_LOGI(TAG, "irrigation schedule: '%s'", IRRIGATION_CRON_EXPRESSION);
+
     // Wait for irrigation timeout for NTP sync - this implies working internet connection
     // NOTE this is needed, so valve is not turned on before wifi connection is made
     while (time(NULL) < IRRIGATION_MAX_LENGTH_SECONDS)
@@ -365,7 +367,9 @@ void app_main()
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(hw_water_level_sensor_pin, GPIO_MODE_INPUT));
 #endif
 
-        // Throttle - must be last
+        // Throttle
+        // TODO differentiate between loop and how often to measure
+        // TODO measure often when water is on
         vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
     }
 }
@@ -392,6 +396,8 @@ static void factory_reset(__unused void *arg)
 
 static void provision_wifi(__unused void *arg)
 {
+    ESP_LOGW(TAG, "provision wifi");
+
     // Stop main loop
     running = false;
 
