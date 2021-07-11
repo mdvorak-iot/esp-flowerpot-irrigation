@@ -26,6 +26,9 @@
 #include <driver/adc_common.h>
 #endif
 
+#define SEC_TO_US(v) ((v)*1000000LL)
+#define US_TO_SEC(v) ((v) / 1000000LL)
+
 static const char DRAM_ATTR TAG[] = "app_main";
 
 // State
@@ -52,6 +55,7 @@ static float water_level = 0.0f;
 #endif
 #if HW_VALVE_ENABLE
 static volatile bool valve_on = false;
+static volatile int64_t valve_manual_on_start_us = -SEC_TO_US(IRRIGATION_MAX_LENGTH_SECONDS); // Set it in past, so manual irrigation won't be triggered on boot
 #endif
 
 // Program
@@ -117,6 +121,7 @@ void setup()
     ESP_ERROR_CHECK(err);
 
     // System services
+    ESP_ERROR_CHECK(gpio_install_isr_service(0));
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     // Check double reset
@@ -151,7 +156,7 @@ void setup()
         .level = HW_BUTTON_LEVEL,
         .long_press_ms = HW_BUTTON_LONG_PRESS_MS,
         .internal_pull = HW_BUTTON_PULL,
-        .on_press = button_handler,
+        .on_press = NULL,
         .on_release = button_handler,
     };
     ESP_ERROR_CHECK(button_config(HW_BUTTON_PIN, &switch_cfg, NULL));
@@ -290,25 +295,26 @@ void app_main()
 #endif
 
         // Trigger irrigation
-        // TODO support MIN/MAX
 #if IRRIGATION_ENABLE
         // NOTE this should be smarter, now it depends on loop execution
-        if (can_irrigate(time(NULL)))
+        bool manual_irrigation = US_TO_SEC(esp_timer_get_time() - valve_manual_on_start_us) < IRRIGATION_MAX_LENGTH_SECONDS;
+        if (manual_irrigation || can_irrigate(time(NULL)))
         {
 #if HW_WATER_LEVEL_ENABLE
-            if (!water_level_valid && valve_on)
+            // Turn off when water sensor failed, except when manually triggered
+            if (!water_level_valid && valve_on && !manual_irrigation)
             {
                 // Turn off the valve
                 ESP_LOGW(TAG, "turning off the valve, water level readout is invalid!");
                 valve_on = false;
             }
-            else if (!valve_on && water_level <= (float)IRRIGATION_WATER_LEVEL_LOW_PERCENT / 100.0f)
+            else if (!valve_on && (int)(water_level * 100) <= IRRIGATION_WATER_LEVEL_LOW_PERCENT)
             {
                 // Turn on the valve
                 ESP_LOGW(TAG, "turning on the valve, low water level detected");
                 valve_on = true;
             }
-            else if (valve_on && water_level >= (float)IRRIGATION_WATER_LEVEL_HIGH_PERCENT / 100.0f)
+            else if (valve_on && (int)(water_level * 100) >= IRRIGATION_WATER_LEVEL_HIGH_PERCENT)
             {
                 // Turn off the valve
                 ESP_LOGW(TAG, "turning off the valve, high water level detected");
@@ -400,29 +406,33 @@ static void provision_wifi(__unused void *arg)
 
 static void button_handler(__unused void *arg, const struct button_data *data)
 {
-    if (data->event == BUTTON_EVENT_RELEASED)
+    if (data->press_length_ms > 10000) // TODO constant
     {
-        // Released
-        if (data->press_length_ms > 10000) // TODO constant
-        {
-            // Factory reset
-            // NOTE don't do this from ISR
-            xTaskCreate(factory_reset, DRAM_STR("factory"), 1000, NULL, 1, NULL);
-        }
+        // Factory reset
+        // NOTE don't do this from ISR
+        xTaskCreate(factory_reset, DRAM_STR("factory"), 2000, NULL, 1, NULL);
     }
     else if (data->long_press)
     {
         // Long-press
         // NOTE don't do this from ISR
-        xTaskCreate(provision_wifi, DRAM_STR("wifi_prov"), 1000, NULL, 1, NULL);
+        xTaskCreate(provision_wifi, DRAM_STR("wifi_prov"), 2000, NULL, 1, NULL);
     }
 #if IRRIGATION_ENABLE
     else
     {
         // Short press
         ESP_DRAM_LOGW(TAG, "turning on the valve manually");
-        valve_on = !valve_on;
         // NOTE will take effect on next loop iteration
+        if (!valve_on)
+        {
+            valve_manual_on_start_us = esp_timer_get_time();
+            valve_on = true;
+        }
+        else
+        {
+            valve_on = false;
+        }
     }
 #endif
 }
