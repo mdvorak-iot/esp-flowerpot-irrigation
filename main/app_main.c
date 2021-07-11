@@ -113,7 +113,7 @@ static void log_next_irrigation(time_t now)
     char s[51] = {};
     strftime(s, 50, "%x %X %z", &next_start_tm);
 
-    ESP_LOGI(TAG, "next irrigation starts on %s", s);
+    ESP_LOGI(TAG, "next irrigation starts on %s for %d seconds", s, IRRIGATION_MAX_LENGTH_SECONDS);
 }
 #endif
 
