@@ -21,6 +21,13 @@ menu "Application config"
 endmenu
 
 menu "Hardware config"
+    config HW_BUTTON_PIN
+        int "Switch button pin"
+        default 19
+        help
+            Start/stop irrigation, wifi provision and factory reset.
+
+    # Valve
     menuconfig HW_VALVE_ENABLE
         bool "Water Valve"
         default y
@@ -32,6 +39,7 @@ menu "Hardware config"
         help
             Open normally closed valve pin.
 
+    # Temperature
     menuconfig HW_DS18B20_ENABLE
         bool "Temperature Sensor"
         default y
@@ -41,6 +49,7 @@ menu "Hardware config"
         int "Temperature sensors data pin"
         default 27
 
+    # Soil probe
     menuconfig HW_SOIL_PROBE_ENABLE
         bool "Soil Probe"
         default y
@@ -52,6 +61,37 @@ menu "Hardware config"
         help
             Look in docs, what channel corresponds to which pin.
 
+    config HW_SOIL_PROBE_MIN
+        depends on HW_SOIL_PROBE_ENABLE
+        int "Minimal allowed value for touch probe readout (0-16384)"
+        default 20
+        help
+            Lower value than this is considered invalid and ignored.
+
+    config HW_SOIL_PROBE_MAX
+        depends on HW_SOIL_PROBE_ENABLE
+        int "Maximal allowed value for touch probe readout (0-16384)"
+        default 800
+        help
+            Higher value than this is considered invalid and ignored.
+
+    config HW_SOIL_PROBE_LOW
+        depends on HW_SOIL_PROBE_ENABLE
+        int "Threshold for dry soil (16384-0)"
+        default 650
+        help
+            Value above which value is considered completely dry.
+            Note that this value is inverted - high means dry.
+
+    config HW_SOIL_PROBE_HIGH
+        depends on HW_SOIL_PROBE_ENABLE
+        int "Threshold for wet soil (16384-0)"
+        default 120
+        help
+            Value below which value is considered completely sumberged.
+            Note that this value is inverted - low means wet.
+
+    # Water level sensor
     menuconfig HW_WATER_LEVEL_ENABLE
         bool "Water Level Sensor"
         default y
@@ -96,17 +136,20 @@ menu "Hardware config"
 
     config HW_WATER_LEVEL_LOW
         depends on HW_WATER_LEVEL_ENABLE
-        int "Low threshold for ADC raw value (0-4095)"
+        int "Threshold for 25% water level (0-4095)"
         default 1500
         help
-            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
+            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095).
+            0% water level is anything below this value.
+
 
     config HW_WATER_LEVEL_HIGH
         depends on HW_WATER_LEVEL_ENABLE
-        int "Threshold for ADC raw value (0-4095)"
+        int "Threshold for 100% water level (0-4095)"
         default 2850
         help
-            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095)
+            Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095).
+            100% water level is anything above this value.
 endmenu
 
 menu "Irrigation control"
