@@ -26,7 +26,7 @@
 #include <driver/adc_common.h>
 #endif
 
-static const char TAG[] = "app_main";
+static const char DRAM_ATTR TAG[] = "app_main";
 
 // State
 static httpd_handle_t httpd = NULL;
@@ -50,11 +50,12 @@ static int water_level_raw = 0;
 static float water_level = 0.0f;
 #endif
 #if HW_VALVE_ENABLE
-static bool valve_on = false;
+static volatile bool valve_on = false;
 #endif
 
 // Program
 static esp_err_t metrics_http_handler(httpd_req_t *r);
+static void button_handler(void *arg, const struct button_data *data);
 
 #if HW_SOIL_PROBE_ENABLE || HW_WATER_LEVEL_ENABLE
 static float constrain(float x, float min, float max)
@@ -149,8 +150,8 @@ void setup()
         .level = HW_BUTTON_LEVEL,
         .long_press_ms = HW_BUTTON_LONG_PRESS_MS,
         .internal_pull = HW_BUTTON_PULL,
-        .on_press = NULL,
-        .on_release = NULL,
+        .on_press = button_handler,
+        .on_release = button_handler,
     };
     ESP_ERROR_CHECK(button_config(HW_BUTTON_PIN, &switch_cfg, NULL));
 
@@ -356,6 +357,40 @@ _Noreturn void app_main()
         // Throttle - must be last
         vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
     }
+}
+
+static void factory_reset()
+{
+    ESP_DRAM_LOGW(TAG, "factory-reset");
+    // TODO reformat NVS and restart
+}
+
+static void button_handler(__unused void *arg, const struct button_data *data)
+{
+    if (data->event == BUTTON_EVENT_RELEASED)
+    {
+        // Released
+        if (data->press_length_ms > 10000) // TODO constant
+        {
+            // Factory reset
+            // TODO start in separate task
+            factory_reset();
+        }
+    }
+    else if (data->long_press)
+    {
+        // Long-press
+        // TODO store double-reset flag and reset in separate task
+    }
+#if IRRIGATION_ENABLE
+    else
+    {
+        // Short press
+        ESP_DRAM_LOGW(TAG, "turning on the valve manually");
+        valve_on = !valve_on;
+        // NOTE will take effect on next loop iteration
+    }
+#endif
 }
 
 static esp_err_t metrics_http_handler(httpd_req_t *r)
