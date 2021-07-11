@@ -67,6 +67,7 @@ static float soil_humidity = 0.0f;
 #endif
 #if HW_WATER_LEVEL_ENABLE
 static gpio_num_t hw_water_level_sensor_pin = GPIO_NUM_NC;
+static bool water_level_valid = false;
 static int water_level_raw = 0;
 static float water_level = 0.0f;
 #endif
@@ -114,6 +115,13 @@ static void log_next_irrigation(time_t now)
     strftime(s, 50, "%x %X %z", &next_start_tm);
 
     ESP_LOGI(TAG, "next irrigation starts on %s for %d seconds", s, IRRIGATION_MAX_LENGTH_SECONDS);
+}
+#endif
+
+#if HW_WATER_LEVEL_ENABLE
+static bool is_water_level_valid(int raw)
+{
+    return (raw >= HW_WATER_LEVEL_MIN) && (raw <= HW_WATER_LEVEL_MAX);
 }
 #endif
 
@@ -265,8 +273,19 @@ _Noreturn void app_main()
         vTaskDelayUntil(&start, HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
 
         // Read water level
-        water_level_raw = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNEL);
-        water_level = map_to_range((float)water_level_raw, HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 0.0f, 1.0f);
+        int water_level_readout = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNEL);
+
+        if (is_water_level_valid(water_level_readout))
+        {
+            water_level_raw = water_level_readout;
+            water_level = map_to_range((float)water_level_raw, HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 0.0f, 1.0f);
+            water_level_valid = true; // update state before flipping to true
+        }
+        else
+        {
+            ESP_LOGW(TAG, "water level readout invalid: %d", water_level_readout);
+            water_level_valid = false;
+        }
 #endif
 
         // Trigger irrigation
@@ -276,7 +295,13 @@ _Noreturn void app_main()
         if (can_irrigate(time(NULL)))
         {
 #if HW_WATER_LEVEL_ENABLE
-            if (!valve_on && water_level <= (float)IRRIGATION_WATER_LEVEL_LOW_PERCENT / 100.0f)
+            if (!water_level_valid && valve_on)
+            {
+                // Turn off the valve
+                ESP_LOGW(TAG, "turning off the valve, water level readout is invalid!");
+                valve_on = false;
+            }
+            else if (!valve_on && water_level <= (float)IRRIGATION_WATER_LEVEL_LOW_PERCENT / 100.0f)
             {
                 // Turn on the valve
                 ESP_LOGW(TAG, "turning on the valve, low water level detected");
@@ -285,7 +310,7 @@ _Noreturn void app_main()
             else if (valve_on && water_level >= (float)IRRIGATION_WATER_LEVEL_HIGH_PERCENT / 100.0f)
             {
                 // Turn off the valve
-                ESP_LOGW(TAG, "turning on the valve, high water level detected");
+                ESP_LOGW(TAG, "turning off the valve, high water level detected");
                 valve_on = false;
             }
 #else
@@ -372,11 +397,14 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
 
     // Water level
 #if HW_WATER_LEVEL_ENABLE
-    ptr = util_append(ptr, end, "# TYPE esp_water_level gauge\n");
-    ptr = util_append(ptr, end, "esp_water_level{hardware=\"%s\"} %.2f\n", name, water_level);
+    if (water_level_valid)
+    {
+        ptr = util_append(ptr, end, "# TYPE esp_water_level gauge\n");
+        ptr = util_append(ptr, end, "esp_water_level{hardware=\"%s\"} %.2f\n", name, water_level);
 
-    ptr = util_append(ptr, end, "# TYPE esp_water_level_raw gauge\n");
-    ptr = util_append(ptr, end, "esp_water_level_raw{hardware=\"%s\"} %d\n", name, water_level_raw);
+        ptr = util_append(ptr, end, "# TYPE esp_water_level_raw gauge\n");
+        ptr = util_append(ptr, end, "esp_water_level_raw{hardware=\"%s\"} %d\n", name, water_level_raw);
+    }
 #endif
 
     // Valve
