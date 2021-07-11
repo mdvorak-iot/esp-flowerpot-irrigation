@@ -55,7 +55,7 @@ static float water_level = 0.0f;
 #endif
 #if HW_VALVE_ENABLE
 static volatile bool valve_on = false;
-static volatile int64_t valve_manual_on_start_us = -SEC_TO_US(IRRIGATION_MAX_LENGTH_SECONDS); // Set it in past, so manual irrigation won't be triggered on boot
+static volatile int64_t valve_manual_since_us = -SEC_TO_US(IRRIGATION_MAX_LENGTH_SECONDS); // Set it in past, so manual irrigation won't be triggered on boot
 #endif
 
 // Program
@@ -86,7 +86,7 @@ static bool can_irrigate(time_t t)
     time_t prev_start = cron_prev(&irrigation_cron, t);
 
     // If it is less then interval, let the water flow!
-    return (t - prev_start) < IRRIGATION_MAX_LENGTH_SECONDS;
+    return prev_start != CRON_INVALID_INSTANT && (t - prev_start) < IRRIGATION_MAX_LENGTH_SECONDS;
 }
 
 static void log_next_irrigation(time_t now)
@@ -297,7 +297,7 @@ void app_main()
         // Trigger irrigation
 #if IRRIGATION_ENABLE
         // NOTE this should be smarter, now it depends on loop execution
-        bool manual_irrigation = US_TO_SEC(esp_timer_get_time() - valve_manual_on_start_us) < IRRIGATION_MAX_LENGTH_SECONDS;
+        bool manual_irrigation = US_TO_SEC(esp_timer_get_time() - valve_manual_since_us) < IRRIGATION_MAX_LENGTH_SECONDS;
         if (manual_irrigation || can_irrigate(time(NULL)))
         {
 #if HW_WATER_LEVEL_ENABLE
@@ -321,9 +321,13 @@ void app_main()
                 valve_on = false;
             }
 #else
-            ESP_LOGW(TAG, "turning on the valve unconditionally, according to schedule");
-            log_next_irrigation(time(NULL));
-            valve_on = true;
+            // Ignore schedule when triggered manually
+            if (!valve_on && !manual_irrigation)
+            {
+                ESP_LOGW(TAG, "turning on the valve unconditionally, according to schedule");
+                log_next_irrigation(time(NULL));
+                valve_on = true;
+            }
 #endif
         }
         else if (valve_on)
@@ -422,17 +426,10 @@ static void button_handler(__unused void *arg, const struct button_data *data)
     else
     {
         // Short press
-        ESP_DRAM_LOGW(TAG, "turning on the valve manually");
         // NOTE will take effect on next loop iteration
-        if (!valve_on)
-        {
-            valve_manual_on_start_us = esp_timer_get_time();
-            valve_on = true;
-        }
-        else
-        {
-            valve_on = false;
-        }
+        valve_manual_since_us = esp_timer_get_time();
+        valve_on = !valve_on;
+        ESP_DRAM_LOGW(TAG, "turning %s the valve manually", valve_on ? DRAM_STR("on") : DRAM_STR("off"));
     }
 #endif
 }
