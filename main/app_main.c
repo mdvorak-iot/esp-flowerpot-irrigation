@@ -256,43 +256,47 @@ void app_main()
 
         // Read soil humidity
 #if HW_SOIL_PROBE_ENABLE
-        uint16_t soil_humidity_readout = 0;
-        ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read(HW_SOIL_PROBE_TOUCH_PAD, &soil_humidity_readout));
+        {
+            uint16_t soil_humidity_readout = 0;
+            ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read(HW_SOIL_PROBE_TOUCH_PAD, &soil_humidity_readout));
 
-        if (is_in_range(water_level_readout, HW_SOIL_PROBE_MIN, HW_SOIL_PROBE_MAX))
-        {
-            soil_humidity_raw = soil_humidity_readout;
-            soil_humidity = map_to_range((float)soil_humidity_raw, HW_SOIL_PROBE_LOW, HW_SOIL_PROBE_HIGH, 0.0f, 1.0f);
-            soil_humidity_valid = true; // update state before flipping to true
-        }
-        else
-        {
-            soil_humidity_valid = false;
+            if (is_in_range(soil_humidity_readout, HW_SOIL_PROBE_MIN, HW_SOIL_PROBE_MAX))
+            {
+                soil_humidity_raw = soil_humidity_readout;
+                soil_humidity = map_to_range((float)soil_humidity_raw, HW_SOIL_PROBE_LOW, HW_SOIL_PROBE_HIGH, 0.0f, 1.0f);
+                soil_humidity_valid = true; // update state before flipping to true
+            }
+            else
+            {
+                soil_humidity_valid = false;
+            }
         }
 #endif
 
         // Enable water-level sensor
 #if HW_WATER_LEVEL_ENABLE
-        ESP_ERROR_CHECK_WITHOUT_ABORT(adc1_config_channel_atten(HW_WATER_LEVEL_ADC1_CHANNEL, ADC_ATTEN_DB_11));
-        ESP_ERROR_CHECK(gpio_set_direction(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_OUTPUT));
-        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 1));
-
-        // Wait for sensors to stabilize
-        vTaskDelayUntil(&start, HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
-
-        // Read water level
-        int water_level_readout = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNEL);
-
-        if (is_in_range(water_level_readout, HW_WATER_LEVEL_MIN, HW_WATER_LEVEL_MAX))
         {
-            water_level_raw = water_level_readout;
-            water_level = map_to_range((float)water_level_raw, HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 0.0f, 1.0f);
-            water_level_valid = true; // update state before flipping to true
-        }
-        else
-        {
-            ESP_LOGW(TAG, "water level readout invalid: %d", water_level_readout);
-            water_level_valid = false;
+            ESP_ERROR_CHECK_WITHOUT_ABORT(adc1_config_channel_atten(HW_WATER_LEVEL_ADC1_CHANNEL, ADC_ATTEN_DB_11));
+            ESP_ERROR_CHECK(gpio_set_direction(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_OUTPUT));
+            ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 1));
+
+            // Wait for sensors to stabilize
+            vTaskDelayUntil(&start, HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
+
+            // Read water level
+            int water_level_readout = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNEL);
+
+            if (is_in_range(water_level_readout, HW_WATER_LEVEL_MIN, HW_WATER_LEVEL_MAX))
+            {
+                water_level_raw = water_level_readout;
+                water_level = map_to_range((float)water_level_raw, HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 0.0f, 1.0f);
+                water_level_valid = true; // update state before flipping to true
+            }
+            else
+            {
+                ESP_LOGW(TAG, "water level readout invalid: %d", water_level_readout);
+                water_level_valid = false;
+            }
         }
 #endif
 
