@@ -214,7 +214,8 @@ void setup()
     ESP_LOGI(TAG, "setup complete");
 }
 
-void app_main()
+// NOTE no need to have it in IRAM, but it is faster, and while it fits..
+void IRAM_ATTR app_main()
 {
     setup();
 
@@ -307,24 +308,31 @@ void app_main()
         if (manual_irrigation || can_irrigate(time(NULL)))
         {
 #if HW_WATER_LEVEL_ENABLE
-            // Turn off when water sensor failed, except when manually triggered
-            if (!water_level_valid && valve_on && !manual_irrigation)
+            // Normal flow
+            if (water_level_valid)
             {
-                // Turn off the valve
-                ESP_LOGW(TAG, "turning off the valve, water level readout is invalid!");
-                valve_on = false;
+                if (!valve_on && (int)(water_level * 100) <= IRRIGATION_WATER_LEVEL_LOW_PERCENT)
+                {
+                    // Turn on the valve
+                    ESP_LOGW(TAG, "turning on the valve, low water level detected");
+                    valve_on = true;
+                }
+                else if (valve_on && (int)(water_level * 100) >= IRRIGATION_WATER_LEVEL_HIGH_PERCENT)
+                {
+                    // Turn off the valve
+                    ESP_LOGW(TAG, "turning off the valve, high water level detected");
+                    valve_on = false;
+                }
             }
-            else if (!valve_on && (int)(water_level * 100) <= IRRIGATION_WATER_LEVEL_LOW_PERCENT)
+            else
             {
-                // Turn on the valve
-                ESP_LOGW(TAG, "turning on the valve, low water level detected");
-                valve_on = true;
-            }
-            else if (valve_on && (int)(water_level * 100) >= IRRIGATION_WATER_LEVEL_HIGH_PERCENT)
-            {
-                // Turn off the valve
-                ESP_LOGW(TAG, "turning off the valve, high water level detected");
-                valve_on = false;
+                // Turn off when water sensor failed, except when manually triggered
+                if (valve_on && !manual_irrigation)
+                {
+                    // Turn off the valve
+                    ESP_LOGW(TAG, "turning off the valve, water level readout is invalid!");
+                    valve_on = false;
+                }
             }
 #else
             // Ignore schedule when triggered manually
@@ -412,13 +420,14 @@ static void provision_wifi(__unused void *arg)
 #endif
 
     // Set provision flag
+    // TODO reset reason nesedi, tak se to nepouzije
     ESP_ERROR_CHECK_WITHOUT_ABORT(double_reset_set(true));
 
     // Restart
     esp_restart();
 }
 
-static void button_handler(__unused void *arg, const struct button_data *data)
+static void IRAM_ATTR button_handler(__unused void *arg, const struct button_data *data)
 {
     if (data->press_length_ms > 10000) // TODO constant
     {
