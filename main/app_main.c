@@ -154,9 +154,9 @@ void setup()
     // Button
     struct button_config switch_cfg = {
         .level = HW_BUTTON_LEVEL,
-        .long_press_ms = HW_BUTTON_LONG_PRESS_MS,
+        .long_press_ms = HW_BUTTON_FACTORY_RESET_MS,
         .internal_pull = HW_BUTTON_PULL,
-        .on_press = NULL,
+        .on_press = button_handler,
         .on_release = button_handler,
     };
     ESP_ERROR_CHECK(button_config(HW_BUTTON_PIN, &switch_cfg, NULL));
@@ -357,7 +357,7 @@ void IRAM_ATTR app_main()
 #endif
 
         // Log output
-        // TODO assemble nic log
+        // TODO assemble nice log
         //ESP_LOGI(TAG, "water: %.2f (raw=%d),\tsoil: %.2f (raw=%d),\ttemperature: %.3f", water_level, water_level_raw, soil_humidity, soil_humidity_raw, temperature_value);
 
         // Disable water sensor
@@ -429,28 +429,31 @@ static void provision_wifi(__unused void *arg)
 
 static void IRAM_ATTR button_handler(__unused void *arg, const struct button_data *data)
 {
-    if (data->press_length_ms > 10000) // TODO constant
+    if (data->press_length_ms >= HW_BUTTON_FACTORY_RESET_MS)
     {
         // Factory reset
         // NOTE don't do this from ISR
         xTaskCreate(factory_reset, DRAM_STR("factory"), 2000, NULL, 1, NULL);
     }
-    else if (data->long_press)
+    else if (data->event == BUTTON_EVENT_RELEASED)
     {
-        // Long-press
-        // NOTE don't do this from ISR
-        xTaskCreate(provision_wifi, DRAM_STR("wifi_prov"), 2000, NULL, 1, NULL);
-    }
+        if (data->press_length_ms >= HW_BUTTON_PROVISION_MS)
+        {
+            // Long-press
+            // NOTE don't do this from ISR
+            xTaskCreate(provision_wifi, DRAM_STR("wifi_prov"), 2000, NULL, 1, NULL);
+        }
 #if IRRIGATION_ENABLE
-    else
-    {
-        // Short press
-        // NOTE will take effect on next loop iteration
-        valve_manual_since_us = esp_timer_get_time();
-        valve_on = !valve_on;
-        ESP_DRAM_LOGW(TAG, "turning %s the valve manually", valve_on ? DRAM_STR("on") : DRAM_STR("off"));
-    }
+        else
+        {
+            // Short press
+            // NOTE will take effect on next loop iteration
+            valve_manual_since_us = esp_timer_get_time();
+            valve_on = !valve_on;
+            ESP_DRAM_LOGW(TAG, "turning %s the valve manually", valve_on ? DRAM_STR("on") : DRAM_STR("off"));
+        }
 #endif
+    }
 }
 
 static esp_err_t metrics_http_handler(httpd_req_t *r)
