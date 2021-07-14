@@ -38,9 +38,13 @@ menu "Hardware config"
             bool "Switch button internal pull resistor"
             default y
 
-        config HW_BUTTON_LONG_PRESS_MS
-            int "Switch button long-press interval"
+        config HW_BUTTON_PROVISION_MS
+            int "Switch button provision press interval (ms)"
             default 3000
+
+        config HW_BUTTON_FACTORY_RESET_MS
+            int "Switch factory reset press interval (ms)"
+            default 10000
     endmenu
 
     # Valve
