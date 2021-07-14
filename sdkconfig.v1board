@@ -158,8 +158,8 @@ CONFIG_HW_VALVE_POWER_PIN=13
 #
 # Irrigation control
 #
-CONFIG_IRRIGATION_CRON_EXPRESSION="15 0 6,8,18 * * ?"
-CONFIG_IRRIGATION_MAX_LENGTH_SECONDS=180
+CONFIG_IRRIGATION_CRON_EXPRESSION="15 0 6,8,18,20 * * ?"
+CONFIG_IRRIGATION_MAX_LENGTH_SECONDS=210
 
 #
 # Water level sensor disabled, irrigation will be started on given schedule, without any conditions
