@@ -219,6 +219,7 @@ void setup()
 #if HW_DS18B20_ENABLE
     owb_rmt_initialize(&owb_driver, HW_DS18B20_PIN, RMT_CHANNEL_0, RMT_CHANNEL_1);
     owb_use_crc(&owb_driver.bus, true);
+    // TODO use ds18b20_init with address
     ds18b20_init_solo(&temperature_sensor, &owb_driver.bus); // Only single sensor is expected
     ds18b20_use_crc(&temperature_sensor, true);
     ds18b20_set_resolution(&temperature_sensor, DS18B20_RESOLUTION_12_BIT);
@@ -308,6 +309,9 @@ void IRAM_ATTR app_main()
         // Read soil humidity
 #if HW_SOIL_PROBE_ENABLE
         {
+            // Force small delay, to avoid any potential collision
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+
             uint16_t soil_humidity_readout = 0;
             ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read(HW_SOIL_PROBE_TOUCH_PAD, &soil_humidity_readout));
 
