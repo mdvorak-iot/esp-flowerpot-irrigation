@@ -37,6 +37,7 @@ static httpd_handle_t httpd = NULL;
 #if HW_DS18B20_ENABLE
 static owb_rmt_driver_info owb_driver = {};
 static DS18B20_Info temperature_sensor = {};
+static bool temperature_valid = false;
 static float temperature_value = 0;
 #endif
 #if IRRIGATION_ENABLE
@@ -296,13 +297,16 @@ void IRAM_ATTR app_main()
         DS18B20_ERROR ds_err = ds18b20_read_temp(&temperature_sensor, &temperature_value);
         if (ds_err == DS18B20_OK)
         {
+            temperature_valid = true;
+
 #if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
             log_output = util_append(log_output, log_end, "temp: %.2f\t", temperature_value);
 #endif
         }
         else
         {
-            ESP_LOGW(TAG, "failed to read temperature: %d", ds_err);
+            ESP_LOGW(TAG, "temperature readout invalid: %d", ds_err);
+            temperature_valid = false;
         }
 #endif
 
@@ -327,6 +331,7 @@ void IRAM_ATTR app_main()
             }
             else
             {
+                ESP_LOGW(TAG, "soil humidity readout invalid: %d", soil_humidity_readout);
                 soil_humidity_valid = false;
             }
         }
@@ -538,11 +543,14 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
 
     // Temperature
 #if HW_DS18B20_ENABLE
-    char temperature_address[17] = {};
-    snprintf(temperature_address, sizeof(temperature_address), "%llx", *(uint64_t *)temperature_sensor.rom_code.bytes);
+    if (temperature_valid)
+    {
+        char temperature_address[17] = {};
+        snprintf(temperature_address, sizeof(temperature_address), "%llx", *(uint64_t *)temperature_sensor.rom_code.bytes);
 
-    ptr = util_append(ptr, end, "# TYPE esp_celsius gauge\n");
-    ptr = util_append(ptr, end, "esp_celsius{address=\"%s\",hardware=\"%s\",sensor=\"Ambient\"} %0.3f\n", temperature_address, name, temperature_value);
+        ptr = util_append(ptr, end, "# TYPE esp_celsius gauge\n");
+        ptr = util_append(ptr, end, "esp_celsius{address=\"%s\",hardware=\"%s\",sensor=\"Ambient\"} %0.3f\n", temperature_address, name, temperature_value);
+    }
 #endif
 
     // Soil
