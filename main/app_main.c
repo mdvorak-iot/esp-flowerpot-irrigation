@@ -255,6 +255,11 @@ void IRAM_ATTR app_main()
     // Read values continuously
     TickType_t start = xTaskGetTickCount();
 
+#if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
+    char log_buf[100] = {};
+    const char *log_end = log_buf + sizeof(log_buf);
+#endif
+
     while (true)
     {
         // Separate if from while to avoid lint warning
@@ -266,13 +271,25 @@ void IRAM_ATTR app_main()
             status_led_set_interval_for(STATUS_LED_DEFAULT, 0, true, 100, false);
         }
 
+        // Reset log
+#if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
+        log_buf[0] = '\0';
+        char *log_output = log_buf;
+#endif
+
         // Read temperature
 #if HW_DS18B20_ENABLE
         ds18b20_convert_all(&owb_driver.bus);
         ds18b20_wait_for_conversion(&temperature_sensor);
 
         DS18B20_ERROR ds_err = ds18b20_read_temp(&temperature_sensor, &temperature_value);
-        if (ds_err != DS18B20_OK)
+        if (ds_err == DS18B20_OK)
+        {
+#if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
+            log_output = util_append(log_output, log_end, "temp: %.2f\t", temperature_value);
+#endif
+        }
+        else
         {
             ESP_LOGW(TAG, "failed to read temperature: %d", ds_err);
         }
@@ -289,6 +306,10 @@ void IRAM_ATTR app_main()
                 soil_humidity_raw = soil_humidity_readout;
                 soil_humidity = map_to_range((float)soil_humidity_raw, HW_SOIL_PROBE_LOW, HW_SOIL_PROBE_HIGH, 0.0f, 1.0f);
                 soil_humidity_valid = true; // update state before flipping to true
+
+#if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
+                log_output = util_append(log_output, log_end, "soil: %.2f (raw=%d)\t", soil_humidity, soil_humidity_raw);
+#endif
             }
             else
             {
@@ -315,6 +336,10 @@ void IRAM_ATTR app_main()
                 water_level_raw = water_level_readout;
                 water_level = map_to_range((float)water_level_raw, HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 0.0f, 1.0f);
                 water_level_valid = true; // update state before flipping to true
+
+#if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
+                log_output = util_append(log_output, log_end, "water: %.2f (raw=%d)\t", water_level, water_level_raw);
+#endif
             }
             else
             {
@@ -377,11 +402,17 @@ void IRAM_ATTR app_main()
 
         // Control valve
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_VALVE_POWER_PIN, valve_on ? 1 : 0));
+
+#if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
+        log_output = util_append(log_output, log_end, "valve: %d\t", valve_on ? 1 : 0);
+#endif
 #endif
 
         // Log output
-        // TODO assemble nice log
-        //ESP_LOGI(TAG, "water: %.2f (raw=%d),\tsoil: %.2f (raw=%d),\ttemperature: %.3f", water_level, water_level_raw, soil_humidity, soil_humidity_raw, temperature_value);
+#if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
+        assert(log_output);
+        ESP_LOGI(TAG, "%s", log_buf);
+#endif
 
         // Disable water sensor
 #if HW_WATER_LEVEL_ENABLE
