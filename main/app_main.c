@@ -345,7 +345,7 @@ void IRAM_ATTR app_main()
             ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 1));
 
             // Wait for sensors to stabilize
-            vTaskDelayUntil(&start, HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
+            vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
 
             // Read water level
             int water_level_readout = adc1_get_raw(HW_WATER_LEVEL_ADC1_CHANNEL);
