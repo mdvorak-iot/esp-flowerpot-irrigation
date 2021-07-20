@@ -416,7 +416,6 @@ void IRAM_ATTR app_main()
 
         // Disable water sensor
 #if HW_WATER_LEVEL_ENABLE
-        // TODO revise sequence
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 0));
 
         // Discharge capacitor
@@ -434,9 +433,10 @@ void IRAM_ATTR app_main()
 #endif
 
         // Throttle
-        // TODO differentiate between loop and how often to measure
-        // TODO measure often when water is on
-        vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
+        // NOTE differentiate between loop and how often to measure often when water is on
+        // TODO Kconfig constant
+        TickType_t delay_ms = valve_on ? 1000 : APP_CONTROL_LOOP_INTERVAL;
+        vTaskDelayUntil(&start, delay_ms / portTICK_PERIOD_MS);
     }
 }
 
