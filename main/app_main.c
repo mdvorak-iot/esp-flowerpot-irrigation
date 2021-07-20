@@ -163,8 +163,14 @@ void setup()
 
     // Valve
 #if HW_VALVE_ENABLE
-    ESP_ERROR_CHECK(gpio_reset_pin(HW_VALVE_POWER_PIN));
-    ESP_ERROR_CHECK(gpio_set_direction(HW_VALVE_POWER_PIN, GPIO_MODE_OUTPUT));
+    gpio_config_t valve_cfg = {
+        .pin_bit_mask = BIT64(HW_VALVE_POWER_PIN),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = false,
+        .pull_down_en = false,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&valve_cfg));
     ESP_ERROR_CHECK(gpio_set_level(HW_VALVE_POWER_PIN, 0));
 #endif
 
@@ -173,9 +179,23 @@ void setup()
     ESP_ERROR_CHECK(adc1_config_width(ADC_WIDTH_BIT_12));
     ESP_ERROR_CHECK(adc1_pad_get_io_num(HW_WATER_LEVEL_ADC1_CHANNEL, &hw_water_level_sensor_pin));
 
-    ESP_ERROR_CHECK(gpio_reset_pin(HW_WATER_SENSOR_POWER_PIN));
-    ESP_ERROR_CHECK(gpio_set_direction(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_INPUT));
-    ESP_ERROR_CHECK(gpio_set_direction(hw_water_level_sensor_pin, GPIO_MODE_INPUT));
+    gpio_config_t water_level_power_cfg = {
+        .pin_bit_mask = BIT64(HW_WATER_SENSOR_POWER_PIN),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = false,
+        .pull_down_en = false,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&water_level_power_cfg));
+
+    gpio_config_t water_level_sensor_cfg = {
+        .pin_bit_mask = BIT64(hw_water_level_sensor_pin),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = false,
+        .pull_down_en = false,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&water_level_sensor_cfg));
 #endif
 
     // Soil humidity sensor
