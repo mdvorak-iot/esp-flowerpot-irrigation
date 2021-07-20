@@ -555,7 +555,7 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
     // Valve
 #if HW_VALVE_ENABLE
     ptr = util_append(ptr, end, "# TYPE esp_valve gauge\n");
-    ptr = util_append(ptr, end, "esp_valve {hardware=\"%s\",sensor=\"Water Valve\"} %d\n", name, valve_on);
+    ptr = util_append(ptr, end, "esp_valve{hardware=\"%s\",sensor=\"Water Valve\"} %d\n", name, valve_on);
 #endif
 
     // Send result
