@@ -115,7 +115,7 @@ void setup()
     esp_log_level_set("*", ESP_LOG_WARN);
     esp_log_level_set(TAG, ESP_LOG_DEBUG);
 
-    static const char *info_log_tags[] = {"wifi_reconnect", "double_reset", "button", "status_led", "gpio", "pm"};
+    static const char *info_log_tags[] = {"wifi_reconnect", "double_reset", "button", "status_led", "gpio", "pm", "sntp"};
     for (size_t i = 0; i < sizeof(info_log_tags) / sizeof(char *); i++)
     {
         esp_log_level_set(info_log_tags[i], ESP_LOG_INFO);
