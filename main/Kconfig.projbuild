@@ -77,7 +77,7 @@ menu "Hardware config"
     config HW_SOIL_PROBE_TOUCH_PAD
         depends on HW_SOIL_PROBE_ENABLE
         int "Soil humidity sensor touch pad channel"
-        default 9
+        default 8
         help
             Look in docs, what channel corresponds to which pin.
 
@@ -134,7 +134,7 @@ menu "Hardware config"
     config HW_WATER_LEVEL_ADC1_CHANNEL
         depends on HW_WATER_LEVEL_ENABLE
         int "Water level sensor ADC1 channel"
-        default 5
+        default 4
         help
             Look in docs, what channel corresponds to which pin.
 

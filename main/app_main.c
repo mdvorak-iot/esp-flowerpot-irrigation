@@ -235,8 +235,11 @@ void IRAM_ATTR app_main()
     // Read values continuously
     TickType_t start = xTaskGetTickCount();
 
-    while (running)
+    while (true)
     {
+        // Separate if from while to avoid lint warning
+        if (!running) break;
+
         // Simple status led (don't overwrite connecting states)
         if (!status_led_is_active(STATUS_LED_DEFAULT))
         {
