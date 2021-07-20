@@ -111,6 +111,16 @@ static bool is_in_range(int val, int min, int max)
 
 void setup()
 {
+    // Logging
+    esp_log_level_set("*", ESP_LOG_WARN);
+    esp_log_level_set(TAG, ESP_LOG_DEBUG);
+
+    static const char *info_log_tags[] = {"wifi_reconnect", "double_reset", "button", "status_led", "gpio", "pm"};
+    for (size_t i = 0; i < sizeof(info_log_tags) / sizeof(char *); i++)
+    {
+        esp_log_level_set(info_log_tags[i], ESP_LOG_INFO);
+    }
+
     // Initialize NVS
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -416,18 +426,21 @@ void IRAM_ATTR app_main()
 
         // Disable water sensor
 #if HW_WATER_LEVEL_ENABLE
+        ESP_LOGD(TAG, "discharging water level sensor");
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 0));
 
         // Discharge capacitor
         vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
 
         // Switch polarity for a while
+        ESP_LOGD(TAG, "preventing water level sensor electrolysis");
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(hw_water_level_sensor_pin, GPIO_MODE_OUTPUT));
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(hw_water_level_sensor_pin, 1));
 
         vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
 
         // Leave it floating for better soil humidity precision
+        ESP_LOGD(TAG, "disabling water level sensor");
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_INPUT));
         ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(hw_water_level_sensor_pin, GPIO_MODE_INPUT));
 #endif

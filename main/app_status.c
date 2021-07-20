@@ -5,7 +5,7 @@
 #include <wifi_provisioning/manager.h>
 #include <wifi_reconnect.h>
 
-static const char TAG[] = "setup_status_led";
+static const char TAG[] = "app_status";
 
 static const uint32_t STATUS_LED_CONNECTING_INTERVAL = 500u;
 static const uint32_t STATUS_LED_PROV_INTERVAL = 100u;
