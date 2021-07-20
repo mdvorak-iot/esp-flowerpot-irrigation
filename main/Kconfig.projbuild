@@ -98,18 +98,16 @@ menu "Hardware config"
     config HW_SOIL_PROBE_LOW
         depends on HW_SOIL_PROBE_ENABLE
         int "Threshold for dry soil (16384-0)"
-        default 650
+        default 120
         help
             Value above which value is considered completely dry.
-            Note that this value is inverted - high means dry.
 
     config HW_SOIL_PROBE_HIGH
         depends on HW_SOIL_PROBE_ENABLE
         int "Threshold for wet soil (16384-0)"
-        default 120
+        default 650
         help
-            Value below which value is considered completely sumberged.
-            Note that this value is inverted - low means wet.
+            Value below which value is considered completely submerged.
 
     # Water level sensor
     menuconfig HW_WATER_LEVEL_ENABLE

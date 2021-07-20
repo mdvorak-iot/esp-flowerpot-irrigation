@@ -318,7 +318,7 @@ void IRAM_ATTR app_main()
             if (is_in_range(soil_humidity_readout, HW_SOIL_PROBE_MIN, HW_SOIL_PROBE_MAX))
             {
                 soil_humidity_raw = soil_humidity_readout;
-                soil_humidity = map_to_range((float)soil_humidity_readout, HW_SOIL_PROBE_LOW, HW_SOIL_PROBE_HIGH, 0.0f, 1.0f);
+                soil_humidity = map_to_range((float)soil_humidity_readout, HW_SOIL_PROBE_LOW, HW_SOIL_PROBE_HIGH, 1.0f, 0.0f);
                 soil_humidity_valid = true; // update state before flipping to true
 
 #if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
