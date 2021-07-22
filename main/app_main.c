@@ -457,7 +457,11 @@ void IRAM_ATTR app_main()
         // Throttle
         // NOTE differentiate between loop and how often to measure often when water is on
         // TODO Kconfig constant
+#if IRRIGATION_ENABLE
         TickType_t delay_ms = valve_on ? 1000 : APP_CONTROL_LOOP_INTERVAL;
+#else
+        TickType_t delay_ms = APP_CONTROL_LOOP_INTERVAL;
+#endif
         vTaskDelayUntil(&start, delay_ms / portTICK_PERIOD_MS);
     }
 }
