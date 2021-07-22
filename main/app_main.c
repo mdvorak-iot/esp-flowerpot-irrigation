@@ -108,6 +108,18 @@ static bool is_in_range(int val, int min, int max)
 {
     return (val >= min) && (val <= max);
 }
+
+static esp_err_t reset_gpio_mode(gpio_num_t pin, gpio_mode_t mode)
+{
+    gpio_config_t gpio_cfg = {
+        .pin_bit_mask = BIT64(pin),
+        .mode = mode,
+        .pull_up_en = false,
+        .pull_down_en = false,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    return gpio_config(&gpio_cfg);
+}
 #endif
 
 void setup()
@@ -341,7 +353,7 @@ void IRAM_ATTR app_main()
 #if HW_WATER_LEVEL_ENABLE
         {
             ESP_ERROR_CHECK_WITHOUT_ABORT(adc1_config_channel_atten(HW_WATER_LEVEL_ADC1_CHANNEL, ADC_ATTEN_DB_11));
-            ESP_ERROR_CHECK(gpio_set_direction(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_OUTPUT));
+            ESP_ERROR_CHECK(reset_gpio_mode(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_OUTPUT));
             ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 1));
 
             // Wait for sensors to stabilize
@@ -366,6 +378,24 @@ void IRAM_ATTR app_main()
                 ESP_LOGW(TAG, "water level readout invalid: %d", water_level_readout);
                 water_level_valid = false;
             }
+
+            // Disable water sensor
+            ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 0));
+
+            // Discharge capacitor
+            vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
+
+            // Switch polarity for a while
+            ESP_LOGD(TAG, "preventing water level sensor electrolysis");
+            ESP_ERROR_CHECK_WITHOUT_ABORT(reset_gpio_mode(hw_water_level_sensor_pin, GPIO_MODE_OUTPUT));
+            ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(hw_water_level_sensor_pin, 1));
+
+            vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
+
+            // Leave it floating for better soil humidity precision
+            ESP_LOGD(TAG, "disabling water level sensor");
+            ESP_ERROR_CHECK_WITHOUT_ABORT(reset_gpio_mode(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_INPUT));
+            ESP_ERROR_CHECK_WITHOUT_ABORT(reset_gpio_mode(hw_water_level_sensor_pin, GPIO_MODE_INPUT));
         }
 #endif
 
@@ -432,27 +462,6 @@ void IRAM_ATTR app_main()
 #if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
         assert(log_output);
         ESP_LOGI(TAG, "%s", log_buf);
-#endif
-
-        // Disable water sensor
-#if HW_WATER_LEVEL_ENABLE
-        ESP_LOGD(TAG, "discharging water level sensor");
-        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 0));
-
-        // Discharge capacitor
-        vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
-
-        // Switch polarity for a while
-        ESP_LOGD(TAG, "preventing water level sensor electrolysis");
-        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(hw_water_level_sensor_pin, GPIO_MODE_OUTPUT));
-        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(hw_water_level_sensor_pin, 1));
-
-        vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
-
-        // Leave it floating for better soil humidity precision
-        ESP_LOGD(TAG, "disabling water level sensor");
-        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_INPUT));
-        ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_direction(hw_water_level_sensor_pin, GPIO_MODE_INPUT));
 #endif
 
         // Throttle
