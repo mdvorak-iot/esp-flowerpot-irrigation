@@ -392,6 +392,10 @@ void IRAM_ATTR app_main()
 
             vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
 
+            // Discharge capacitor again
+            ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(hw_water_level_sensor_pin, 0));
+            vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
+
             // Leave it floating for better soil humidity precision
             ESP_LOGD(TAG, "disabling water level sensor");
             ESP_ERROR_CHECK_WITHOUT_ABORT(reset_gpio_mode(HW_WATER_SENSOR_POWER_PIN, GPIO_MODE_INPUT));
