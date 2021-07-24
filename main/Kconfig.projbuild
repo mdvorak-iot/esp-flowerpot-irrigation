@@ -89,7 +89,7 @@ menu "Hardware config"
     config HW_WATER_LEVEL_MIN
         depends on HW_WATER_LEVEL_ENABLE
         int "Minimal allowed value for ADC raw readout (0-4095)"
-        default 1000
+        default 750
         help
             Lower value than this is considered invalid and ignored.
             Irrigation is disabled for invalid values.
@@ -105,7 +105,7 @@ menu "Hardware config"
     config HW_WATER_LEVEL_LOW
         depends on HW_WATER_LEVEL_ENABLE
         int "Threshold for 25% water level (0-4095)"
-        default 1500
+        default 1800
         help
             Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095).
             0% water level is anything below this value.
@@ -113,7 +113,7 @@ menu "Hardware config"
     config HW_WATER_LEVEL_HIGH
         depends on HW_WATER_LEVEL_ENABLE
         int "Threshold for 100% water level (0-4095)"
-        default 2850
+        default 2200
         help
             Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095).
             100% water level is anything above this value.
@@ -147,14 +147,14 @@ menu "Hardware config"
     config HW_SOIL_PROBE_LOW
         depends on HW_SOIL_PROBE_ENABLE
         int "Threshold for dry soil (16384-0)"
-        default 120
+        default 200
         help
             Value above which value is considered completely dry.
 
     config HW_SOIL_PROBE_HIGH
         depends on HW_SOIL_PROBE_ENABLE
         int "Threshold for wet soil (16384-0)"
-        default 650
+        default 500
         help
             Value below which value is considered completely submerged.
 
