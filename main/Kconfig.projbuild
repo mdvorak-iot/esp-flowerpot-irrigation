@@ -59,56 +59,6 @@ menu "Hardware config"
         help
             Open normally closed valve pin.
 
-    # Temperature
-    menuconfig HW_DS18B20_ENABLE
-        bool "Temperature sensor"
-        default y
-
-    config HW_DS18B20_PIN
-        depends on HW_DS18B20_ENABLE
-        int "Temperature sensors data pin"
-        default 27
-
-    # Soil probe
-    menuconfig HW_SOIL_PROBE_ENABLE
-        bool "Soil Probe"
-        default y
-
-    config HW_SOIL_PROBE_TOUCH_PAD
-        depends on HW_SOIL_PROBE_ENABLE
-        int "Soil humidity sensor touch pad channel"
-        default 8
-        help
-            Look in docs, what channel corresponds to which pin.
-
-    config HW_SOIL_PROBE_MIN
-        depends on HW_SOIL_PROBE_ENABLE
-        int "Minimal allowed value for touch probe readout (0-16384)"
-        default 20
-        help
-            Lower value than this is considered invalid and ignored.
-
-    config HW_SOIL_PROBE_MAX
-        depends on HW_SOIL_PROBE_ENABLE
-        int "Maximal allowed value for touch probe readout (0-16384)"
-        default 800
-        help
-            Higher value than this is considered invalid and ignored.
-
-    config HW_SOIL_PROBE_LOW
-        depends on HW_SOIL_PROBE_ENABLE
-        int "Threshold for dry soil (16384-0)"
-        default 120
-        help
-            Value above which value is considered completely dry.
-
-    config HW_SOIL_PROBE_HIGH
-        depends on HW_SOIL_PROBE_ENABLE
-        int "Threshold for wet soil (16384-0)"
-        default 650
-        help
-            Value below which value is considered completely submerged.
-
     # Water level sensor
     menuconfig HW_WATER_LEVEL_ENABLE
         bool "Water level sensor"
@@ -124,7 +74,7 @@ menu "Hardware config"
     config HW_WATER_LEVEL_DELAY_MS
         depends on HW_WATER_LEVEL_ENABLE
         int "Delay to stabilize water-level sensor readouts."
-        default 200
+        default 300
         help
             Delay after sensor power-up or any other manipulation, to charge
             capacitors and provide stable reading.
@@ -167,6 +117,57 @@ menu "Hardware config"
         help
             Threshold for ADC raw value, when level is considered submerged, in 12-bit (0-4095).
             100% water level is anything above this value.
+
+    # Soil probe
+    menuconfig HW_SOIL_PROBE_ENABLE
+        bool "Soil Probe"
+        default y
+
+    config HW_SOIL_PROBE_TOUCH_PAD
+        depends on HW_SOIL_PROBE_ENABLE
+        int "Soil humidity sensor touch pad channel"
+        default 8
+        help
+            Look in docs, what channel corresponds to which pin.
+
+    config HW_SOIL_PROBE_MIN
+        depends on HW_SOIL_PROBE_ENABLE
+        int "Minimal allowed value for touch probe readout (0-16384)"
+        default 20
+        help
+            Lower value than this is considered invalid and ignored.
+
+    config HW_SOIL_PROBE_MAX
+        depends on HW_SOIL_PROBE_ENABLE
+        int "Maximal allowed value for touch probe readout (0-16384)"
+        default 800
+        help
+            Higher value than this is considered invalid and ignored.
+
+    config HW_SOIL_PROBE_LOW
+        depends on HW_SOIL_PROBE_ENABLE
+        int "Threshold for dry soil (16384-0)"
+        default 120
+        help
+            Value above which value is considered completely dry.
+
+    config HW_SOIL_PROBE_HIGH
+        depends on HW_SOIL_PROBE_ENABLE
+        int "Threshold for wet soil (16384-0)"
+        default 650
+        help
+            Value below which value is considered completely submerged.
+
+    # Temperature
+    menuconfig HW_DS18B20_ENABLE
+        bool "Temperature sensor"
+        default y
+
+    config HW_DS18B20_PIN
+        depends on HW_DS18B20_ENABLE
+        int "Temperature sensors data pin"
+        default 27
+
 endmenu
 
 menu "Irrigation control"
