@@ -39,7 +39,7 @@ static httpd_handle_t httpd = NULL;
 #if HW_DS18B20_ENABLE
 static owb_rmt_driver_info owb_driver = {};
 static DS18B20_Info temperature_sensor = {};
-static bool temperature_valid = false;
+static size_t temperature_failures = 0;
 static float temperature_value = 0;
 #endif
 #if IRRIGATION_ENABLE
@@ -307,22 +307,32 @@ void IRAM_ATTR app_main()
 
         // Read temperature
 #if HW_DS18B20_ENABLE
-        ds18b20_convert_all(&owb_driver.bus);
-        ds18b20_wait_for_conversion(&temperature_sensor);
-
-        DS18B20_ERROR ds_err = ds18b20_read_temp(&temperature_sensor, &temperature_value);
-        if (ds_err == DS18B20_OK)
+        // Back-off mechanism, when device fails constantly
+        if (temperature_failures < 3 || temperature_failures % 10 == 0)
         {
-            temperature_valid = true;
+
+            ds18b20_convert_all(&owb_driver.bus);
+            ds18b20_wait_for_conversion(&temperature_sensor);
+
+            DS18B20_ERROR ds_err = ds18b20_read_temp(&temperature_sensor, &temperature_value);
+            if (ds_err == DS18B20_OK)
+            {
+                temperature_failures = 0;
 
 #if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
-            log_output = util_append(log_output, log_end, "temp: %.2f\t", temperature_value);
+                log_output = util_append(log_output, log_end, "temp: %.2f\t", temperature_value);
 #endif
+            }
+            else
+            {
+                ESP_LOGW(TAG, "temperature readout error: %d", ds_err);
+                temperature_failures++;
+            }
         }
         else
         {
-            ESP_LOGW(TAG, "temperature readout error: %d", ds_err);
-            temperature_valid = false;
+            // Do nothing, but increment counter, so readout is performed again after some delay
+            temperature_failures++;
         }
 #endif
 
@@ -573,7 +583,7 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
 
     // Temperature
 #if HW_DS18B20_ENABLE
-    if (temperature_valid)
+    if (temperature_failures == 0)
     {
         char temperature_address[17] = {};
         snprintf(temperature_address, sizeof(temperature_address), "%llx", *(uint64_t *)temperature_sensor.rom_code.bytes);
