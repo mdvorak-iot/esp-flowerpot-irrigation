@@ -1,4 +1,3 @@
-#include "adaptive_range.h"
 #include "app_config.h"
 #include "app_status.h"
 #include <app_wifi.h>
@@ -49,14 +48,12 @@ static cron_expr irrigation_cron = {};
 static bool soil_humidity_valid = false;
 static uint16_t soil_humidity_raw = 0;
 static float soil_humidity = 0.0f;
-static struct adaptive_range soil_humidity_range = ADAPTIVE_RANGE_INIT("soil1", HW_SOIL_PROBE_LOW, HW_SOIL_PROBE_HIGH, 20);
 #endif
 #if HW_WATER_LEVEL_ENABLE
 static gpio_num_t hw_water_level_sensor_pin = GPIO_NUM_NC;
 static bool water_level_valid = false;
 static int water_level_raw = 0;
 static float water_level = 0.0f;
-static struct adaptive_range water_level_range = ADAPTIVE_RANGE_INIT("water_level", HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 20);
 #endif
 #if HW_VALVE_ENABLE
 static volatile bool valve_on = false;
@@ -91,7 +88,18 @@ static void log_next_irrigation(time_t now)
 #endif
 
 #if HW_WATER_LEVEL_ENABLE
-static bool is_in_range(int val, int min, int max)
+
+static int constrain(int x, int min, int max)
+{
+    return x < min ? min : (x > max ? max : x);
+}
+
+static float map(int x, int in_min, int in_max, float out_min, float out_max)
+{
+    return (float)(constrain(x, in_min, in_max) - in_min) * (out_max - out_min) / (float)(in_max - in_min) + out_min;
+}
+
+static bool in_range(int val, int min, int max)
 {
     return (val >= min) && (val <= max);
 }
@@ -107,6 +115,21 @@ static esp_err_t reset_gpio_mode(gpio_num_t pin, gpio_mode_t mode)
     };
     return gpio_config(&gpio_cfg);
 }
+
+static int adc1_approx_raw(adc1_channel_t channel, int num)
+{
+    assert(num > 0);
+
+    adc_power_acquire();
+    int val = 0;
+    for (int i = 0; i < num; i++)
+    {
+        val += adc1_get_raw(channel);
+    }
+    adc_power_release();
+    return val / num;
+}
+
 #endif
 
 void setup()
@@ -189,7 +212,6 @@ void setup()
 #if HW_WATER_LEVEL_ENABLE
     ESP_ERROR_CHECK(adc1_config_width(ADC_WIDTH_BIT_12));
     ESP_ERROR_CHECK(adc1_pad_get_io_num(HW_WATER_LEVEL_ADC1_CHANNEL, &hw_water_level_sensor_pin));
-    ESP_ERROR_CHECK(adaptive_range_load(&water_level_range));
 
     gpio_config_t water_level_power_cfg = {
         .pin_bit_mask = BIT64(HW_WATER_SENSOR_POWER_PIN),
@@ -215,7 +237,6 @@ void setup()
     ESP_ERROR_CHECK(touch_pad_init());
     ESP_ERROR_CHECK(touch_pad_set_voltage(TOUCH_HVOLT_KEEP, TOUCH_LVOLT_KEEP, TOUCH_HVOLT_ATTEN_0V));
     ESP_ERROR_CHECK(touch_pad_config(HW_SOIL_PROBE_TOUCH_PAD, 0));
-    ESP_ERROR_CHECK(adaptive_range_load(&soil_humidity_range));
 #endif
 
     // Temperature sensor init
@@ -246,20 +267,6 @@ void setup()
 
     // Done
     ESP_LOGI(TAG, "setup complete");
-}
-
-static int adc1_approx_raw(adc1_channel_t channel, int num)
-{
-    assert(num > 0);
-
-    adc_power_acquire();
-    int val = 0;
-    for (int i = 0; i < num; i++)
-    {
-        val += adc1_get_raw(channel);
-    }
-    adc_power_release();
-    return val / num;
 }
 
 // NOTE no need to have it in IRAM, but it is faster, and while it fits..
@@ -345,13 +352,10 @@ void IRAM_ATTR app_main()
             uint16_t soil_humidity_readout = 0;
             ESP_ERROR_CHECK_WITHOUT_ABORT(touch_pad_read(HW_SOIL_PROBE_TOUCH_PAD, &soil_humidity_readout));
 
-            if (is_in_range(soil_humidity_readout, HW_SOIL_PROBE_MIN, HW_SOIL_PROBE_MAX))
+            if (in_range(soil_humidity_readout, HW_SOIL_PROBE_MIN, HW_SOIL_PROBE_MAX))
             {
                 soil_humidity_raw = soil_humidity_readout;
-
-                float soil_humidity_reverse = NAN;
-                adaptive_range_update(&soil_humidity_range, soil_humidity_readout, &soil_humidity_reverse);
-                soil_humidity = 1.0f - soil_humidity_reverse; // invert
+                soil_humidity = map(soil_humidity_readout, HW_SOIL_PROBE_LOW, HW_SOIL_PROBE_HIGH, 1.0f, 0.0f);
 
                 soil_humidity_valid = true; // update state before flipping to true
 
@@ -381,11 +385,10 @@ void IRAM_ATTR app_main()
             // Read water level
             int water_level_readout = adc1_approx_raw(HW_WATER_LEVEL_ADC1_CHANNEL, 5);
 
-            if (is_in_range(water_level_readout, HW_WATER_LEVEL_MIN, HW_WATER_LEVEL_MAX))
+            if (in_range(water_level_readout, HW_WATER_LEVEL_MIN, HW_WATER_LEVEL_MAX))
             {
                 water_level_raw = water_level_readout;
-                water_level = NAN;
-                adaptive_range_update(&water_level_range, water_level_readout, &water_level);
+                water_level = map(water_level_readout, HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 0.0f, 1.0f);
                 water_level_valid = true; // update state before flipping to true
 
 #if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
