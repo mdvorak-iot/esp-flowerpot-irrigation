@@ -331,7 +331,7 @@ void IRAM_ATTR app_main()
         }
         else
         {
-            ESP_LOGW(TAG, "temperature readout invalid: %d", ds_err);
+            ESP_LOGW(TAG, "temperature readout error: %d", ds_err);
             temperature_valid = false;
         }
 #endif
@@ -393,22 +393,25 @@ void IRAM_ATTR app_main()
                 water_level_valid = false;
             }
 
-            // Disable water sensor
-            ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 0));
-
             // Discharge capacitor
-            vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
+            ESP_LOGD(TAG, "discharging capacitor");
+            ESP_ERROR_CHECK_WITHOUT_ABORT(reset_gpio_mode(hw_water_level_sensor_pin, GPIO_MODE_OUTPUT_OD));
+            ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(hw_water_level_sensor_pin, 0));
+            vTaskDelay(10 / portTICK_PERIOD_MS); // NOTE it is discharged via small resistor, thus it is very fast
 
             // Switch polarity for a while
             ESP_LOGD(TAG, "preventing water level sensor electrolysis");
+            ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(HW_WATER_SENSOR_POWER_PIN, 0));
             ESP_ERROR_CHECK_WITHOUT_ABORT(reset_gpio_mode(hw_water_level_sensor_pin, GPIO_MODE_OUTPUT));
             ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(hw_water_level_sensor_pin, 1));
 
             vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
 
-            // Discharge capacitor again
+            // Discharge capacitor again (needed if capacitor is connected to the ground permanently)
+            ESP_LOGD(TAG, "discharging capacitor again");
+            ESP_ERROR_CHECK_WITHOUT_ABORT(reset_gpio_mode(hw_water_level_sensor_pin, GPIO_MODE_OUTPUT_OD));
             ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_set_level(hw_water_level_sensor_pin, 0));
-            vTaskDelay(HW_WATER_SENSOR_DELAY_MS / portTICK_PERIOD_MS);
+            vTaskDelay(10 / portTICK_PERIOD_MS); // NOTE it is discharged via small resistor, thus it is very fast
 
             // Leave it floating for better soil humidity precision
             ESP_LOGD(TAG, "disabling water level sensor");
