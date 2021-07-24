@@ -113,6 +113,7 @@ void setup()
 {
     // Logging
     esp_log_level_set("*", ESP_LOG_WARN);
+    esp_log_level_set("owb_rmt", ESP_LOG_NONE); // very verbose when device is missing
     esp_log_level_set(TAG, ESP_LOG_DEBUG);
 
     static const char *info_log_tags[] = {"adaptive_range", "wifi_reconnect", "double_reset", "button", "status_led", "pm"};
