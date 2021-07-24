@@ -1,3 +1,4 @@
+#include "adaptive_range.h"
 #include "app_config.h"
 #include "app_status.h"
 #include <app_wifi.h>
@@ -24,6 +25,7 @@
 #endif
 #if CONFIG_HW_WATER_LEVEL_ENABLE
 #include <driver/adc_common.h>
+#include <math.h>
 #endif
 
 #define SEC_TO_US(v) ((v)*1000000LL)
@@ -46,6 +48,11 @@ static cron_expr irrigation_cron = {};
 #if HW_SOIL_PROBE_ENABLE
 static bool soil_humidity_valid = false;
 static uint16_t soil_humidity_raw = 0;
+static struct adaptive_range soil_humidity_range = {
+    .name = "soil1",
+    .low = HW_SOIL_PROBE_LOW,
+    .high = HW_SOIL_PROBE_HIGH,
+};
 static float soil_humidity = 0.0f;
 #endif
 #if HW_WATER_LEVEL_ENABLE
@@ -226,6 +233,7 @@ void setup()
     ESP_ERROR_CHECK(touch_pad_init());
     ESP_ERROR_CHECK(touch_pad_set_voltage(TOUCH_HVOLT_KEEP, TOUCH_LVOLT_KEEP, TOUCH_HVOLT_ATTEN_0V));
     ESP_ERROR_CHECK(touch_pad_config(HW_SOIL_PROBE_TOUCH_PAD, 0));
+    ESP_ERROR_CHECK(adaptive_range_load(&soil_humidity_range));
 #endif
 
     // Temperature sensor init
@@ -348,8 +356,11 @@ void IRAM_ATTR app_main()
             if (is_in_range(soil_humidity_readout, HW_SOIL_PROBE_MIN, HW_SOIL_PROBE_MAX))
             {
                 soil_humidity_raw = soil_humidity_readout;
-                soil_humidity = map_to_range((float)soil_humidity_readout, HW_SOIL_PROBE_LOW, HW_SOIL_PROBE_HIGH, 1.0f, 0.0f);
-                soil_humidity_valid = true; // update state before flipping to true
+                float soil_humidity_reverse = NAN;
+                adaptive_range_update(&soil_humidity_range, soil_humidity_readout, &soil_humidity_reverse);
+
+                soil_humidity = 1.0f - soil_humidity_reverse;
+                soil_humidity_valid = !isnanf(soil_humidity); // update state before flipping to true
 
 #if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
                 log_output = util_append(log_output, log_end, "soil: %.2f (raw=%d)\t", soil_humidity, soil_humidity_raw);
