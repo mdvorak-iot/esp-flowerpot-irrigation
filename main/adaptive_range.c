@@ -1,5 +1,8 @@
 #include "adaptive_range.h"
+#include <esp_log.h>
 #include <nvs.h>
+
+static const char TAG[] = "adaptive_range";
 
 esp_err_t adaptive_range_load(struct adaptive_range *range)
 {
@@ -13,7 +16,8 @@ esp_err_t adaptive_range_load(struct adaptive_range *range)
     esp_err_t err = nvs_open(range->name, NVS_READONLY, &h);
     if (err != ESP_OK)
     {
-        return err;
+        // Ignore when not found, and return success
+        return err != ESP_ERR_NVS_NOT_FOUND ? err : ESP_OK;
     }
 
     // Read stored values
@@ -21,6 +25,8 @@ esp_err_t adaptive_range_load(struct adaptive_range *range)
     nvs_get_i32(h, "h", &range->high);
 
     nvs_close(h);
+
+    ESP_LOGI(TAG, "loaded %s {low=%d,high=%d}", range->name, range->low, range->high);
     return ESP_OK;
 }
 
@@ -59,15 +65,22 @@ esp_err_t adaptive_range_store(struct adaptive_range *range)
         goto exit;
     }
 
+    ESP_LOGI(TAG, "stored %s {low=%d,high=%d}", range->name, range->low, range->high);
+
     // Close and return
 exit:
     nvs_close(h);
-    return ESP_OK;
+    return err;
+}
+
+static int32_t constrain(int32_t x, int32_t min, int32_t max)
+{
+    return x < min ? min : (x > max ? max : x);
 }
 
 static float map(int32_t x, int32_t in_min, int32_t in_max, float out_min, float out_max)
 {
-    return (float)(x - in_min) * (out_max - out_min) / (float)(in_max - in_min) + out_min;
+    return (float)(constrain(x, in_min, in_max) - in_min) * (out_max - out_min) / (float)(in_max - in_min) + out_min;
 }
 
 esp_err_t adaptive_range_update(struct adaptive_range *range, int32_t value, float *percent)
@@ -77,23 +90,23 @@ esp_err_t adaptive_range_update(struct adaptive_range *range, int32_t value, flo
         return ESP_ERR_INVALID_ARG;
     }
 
-    // Compare range
+    // Compare and update range, but only if it overshoots edges by given tolerance
     bool extend = false;
-    if (value > range->high)
+    if (value - range->tolerance > range->high)
     {
-        range->high = value;
+        range->high = value - range->tolerance;
         extend = true;
     }
-    else if (value < range->low)
+    else if (value + range->tolerance < range->low)
     {
-        range->low = value;
+        range->low = value + range->tolerance;
         extend = true;
     }
 
     // Calculate
     if (percent)
     {
-        *percent = map(value, range->low, range->high, 0.0f, 0.1f);
+        *percent = map(value, range->low, range->high, 0.0f, 1.0f);
     }
 
     // Store changes

@@ -48,18 +48,15 @@ static cron_expr irrigation_cron = {};
 #if HW_SOIL_PROBE_ENABLE
 static bool soil_humidity_valid = false;
 static uint16_t soil_humidity_raw = 0;
-static struct adaptive_range soil_humidity_range = {
-    .name = "soil1",
-    .low = HW_SOIL_PROBE_LOW,
-    .high = HW_SOIL_PROBE_HIGH,
-};
 static float soil_humidity = 0.0f;
+static struct adaptive_range soil_humidity_range = ADAPTIVE_RANGE_INIT("soil1", HW_SOIL_PROBE_LOW, HW_SOIL_PROBE_HIGH, 20);
 #endif
 #if HW_WATER_LEVEL_ENABLE
 static gpio_num_t hw_water_level_sensor_pin = GPIO_NUM_NC;
 static bool water_level_valid = false;
 static int water_level_raw = 0;
 static float water_level = 0.0f;
+static struct adaptive_range water_level_range = ADAPTIVE_RANGE_INIT("water_level", HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 20);
 #endif
 #if HW_VALVE_ENABLE
 static volatile bool valve_on = false;
@@ -69,23 +66,6 @@ static volatile int64_t valve_manual_since_us = -SEC_TO_US(IRRIGATION_MAX_LENGTH
 // Program
 static esp_err_t metrics_http_handler(httpd_req_t *r);
 static void button_handler(void *arg, const struct button_data *data);
-
-#if HW_SOIL_PROBE_ENABLE || HW_WATER_LEVEL_ENABLE
-static float constrain(float x, float min, float max)
-{
-    return x < min ? min : (x > max ? max : x);
-}
-
-static float map(float x, float in_min, float in_max, float out_min, float out_max)
-{
-    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
-static float map_to_range(float x, float in_min, float in_max, float out_min, float out_max)
-{
-    return map(constrain(x, in_min, in_max), in_min, in_max, out_min, out_max);
-}
-#endif
 
 #if IRRIGATION_ENABLE
 static bool can_irrigate(time_t t)
@@ -135,7 +115,7 @@ void setup()
     esp_log_level_set("*", ESP_LOG_WARN);
     esp_log_level_set(TAG, ESP_LOG_DEBUG);
 
-    static const char *info_log_tags[] = {"wifi_reconnect", "double_reset", "button", "status_led", "pm"};
+    static const char *info_log_tags[] = {"adaptive_range", "wifi_reconnect", "double_reset", "button", "status_led", "pm"};
     for (size_t i = 0; i < sizeof(info_log_tags) / sizeof(char *); i++)
     {
         esp_log_level_set(info_log_tags[i], ESP_LOG_INFO);
@@ -208,6 +188,7 @@ void setup()
 #if HW_WATER_LEVEL_ENABLE
     ESP_ERROR_CHECK(adc1_config_width(ADC_WIDTH_BIT_12));
     ESP_ERROR_CHECK(adc1_pad_get_io_num(HW_WATER_LEVEL_ADC1_CHANNEL, &hw_water_level_sensor_pin));
+    ESP_ERROR_CHECK(adaptive_range_load(&water_level_range));
 
     gpio_config_t water_level_power_cfg = {
         .pin_bit_mask = BIT64(HW_WATER_SENSOR_POWER_PIN),
@@ -356,11 +337,12 @@ void IRAM_ATTR app_main()
             if (is_in_range(soil_humidity_readout, HW_SOIL_PROBE_MIN, HW_SOIL_PROBE_MAX))
             {
                 soil_humidity_raw = soil_humidity_readout;
+
                 float soil_humidity_reverse = NAN;
                 adaptive_range_update(&soil_humidity_range, soil_humidity_readout, &soil_humidity_reverse);
+                soil_humidity = 1.0f - soil_humidity_reverse; // invert
 
-                soil_humidity = 1.0f - soil_humidity_reverse;
-                soil_humidity_valid = !isnanf(soil_humidity); // update state before flipping to true
+                soil_humidity_valid = true; // update state before flipping to true
 
 #if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
                 log_output = util_append(log_output, log_end, "soil: %.2f (raw=%d)\t", soil_humidity, soil_humidity_raw);
@@ -391,7 +373,8 @@ void IRAM_ATTR app_main()
             if (is_in_range(water_level_readout, HW_WATER_LEVEL_MIN, HW_WATER_LEVEL_MAX))
             {
                 water_level_raw = water_level_readout;
-                water_level = map_to_range((float)water_level_readout, HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 0.0f, 1.0f);
+                water_level = NAN;
+                adaptive_range_update(&water_level_range, water_level_readout, &water_level);
                 water_level_valid = true; // update state before flipping to true
 
 #if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
