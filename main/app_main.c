@@ -45,12 +45,14 @@ static float temperature_value = 0;
 static cron_expr irrigation_cron = {};
 #endif
 #if HW_SOIL_PROBE_ENABLE
+static bool soil_humidity_init = false;
 static bool soil_humidity_valid = false;
 static uint16_t soil_humidity_raw = 0;
 static float soil_humidity = 0.0f;
 #endif
 #if HW_WATER_LEVEL_ENABLE
 static gpio_num_t hw_water_level_sensor_pin = GPIO_NUM_NC;
+static bool water_level_init = false;
 static bool water_level_valid = false;
 static int water_level_raw = 0;
 static float water_level = 0.0f;
@@ -358,6 +360,7 @@ void IRAM_ATTR app_main()
                 soil_humidity = map(soil_humidity_readout, HW_SOIL_PROBE_LOW, HW_SOIL_PROBE_HIGH, 1.0f, 0.0f);
 
                 soil_humidity_valid = true; // update state before flipping to true
+                soil_humidity_init = true;
 
 #if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
                 log_output = util_append(log_output, log_end, "soil: %.2f (raw=%d)\t", soil_humidity, soil_humidity_raw);
@@ -390,6 +393,7 @@ void IRAM_ATTR app_main()
                 water_level_raw = water_level_readout;
                 water_level = map(water_level_readout, HW_WATER_LEVEL_LOW, HW_WATER_LEVEL_HIGH, 0.0f, 1.0f);
                 water_level_valid = true; // update state before flipping to true
+                water_level_init = true;
 
 #if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
                 log_output = util_append(log_output, log_end, "water: %.2f (raw=%d)\t", water_level, water_level_raw);
@@ -598,25 +602,31 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
 
     // Soil
 #if HW_SOIL_PROBE_ENABLE
-    if (soil_humidity_valid)
+    if (soil_humidity_init)
     {
         ptr = util_append(ptr, end, "# TYPE esp_humidity gauge\n");
         ptr = util_append(ptr, end, "esp_humidity{hardware=\"%s\",sensor=\"Soil\"} %.2f\n", name, soil_humidity);
 
-        ptr = util_append(ptr, end, "# TYPE esp_humidity_raw gauge\n");
-        ptr = util_append(ptr, end, "esp_humidity_raw{hardware=\"%s\",sensor=\"Soil\"} %d\n", name, soil_humidity_raw);
+        if (soil_humidity_valid)
+        {
+            ptr = util_append(ptr, end, "# TYPE esp_humidity_raw gauge\n");
+            ptr = util_append(ptr, end, "esp_humidity_raw{hardware=\"%s\",sensor=\"Soil\"} %d\n", name, soil_humidity_raw);
+        }
     }
 #endif
 
     // Water level
 #if HW_WATER_LEVEL_ENABLE
-    if (water_level_valid)
+    if (water_level_init)
     {
         ptr = util_append(ptr, end, "# TYPE esp_water_level gauge\n");
         ptr = util_append(ptr, end, "esp_water_level{hardware=\"%s\"} %.2f\n", name, water_level);
 
-        ptr = util_append(ptr, end, "# TYPE esp_water_level_raw gauge\n");
-        ptr = util_append(ptr, end, "esp_water_level_raw{hardware=\"%s\"} %d\n", name, water_level_raw);
+        if (water_level_valid)
+        {
+            ptr = util_append(ptr, end, "# TYPE esp_water_level_raw gauge\n");
+            ptr = util_append(ptr, end, "esp_water_level_raw{hardware=\"%s\"} %d\n", name, water_level_raw);
+        }
     }
 #endif
 
