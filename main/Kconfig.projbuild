@@ -89,7 +89,7 @@ menu "Hardware config"
     config HW_WATER_LEVEL_MIN
         depends on HW_WATER_LEVEL_ENABLE
         int "Minimal allowed value for ADC raw readout (0-4095)"
-        default 1000
+        default 800
         help
             Lower value than this is considered invalid and ignored.
             Irrigation is disabled for invalid values.

@@ -38,7 +38,7 @@ static httpd_handle_t httpd = NULL;
 #if HW_DS18B20_ENABLE
 static owb_rmt_driver_info owb_driver = {};
 static DS18B20_Info temperature_sensor = {};
-static size_t temperature_failures = 0;
+static bool temperature_valid = false;
 static float temperature_value = 0;
 #endif
 #if IRRIGATION_ENABLE
@@ -271,11 +271,51 @@ void setup()
     ESP_LOGI(TAG, "setup complete");
 }
 
+#if HW_DS18B20_ENABLE
+static void temperature_task(__unused void *p)
+{
+    TickType_t start = xTaskGetTickCount();
+
+    while (true)
+    {
+        // Apart from a while condition to avoid lint warning
+        if (!running) break;
+
+        // Throttle
+        vTaskDelayUntil(&start, APP_CONTROL_LOOP_INTERVAL / portTICK_PERIOD_MS);
+
+        // Request conversion
+        ds18b20_convert_all(&owb_driver.bus);
+        ds18b20_wait_for_conversion(&temperature_sensor);
+
+        // Read result
+        DS18B20_ERROR ds_err = ds18b20_read_temp(&temperature_sensor, &temperature_value);
+        if (ds_err == DS18B20_OK)
+        {
+            temperature_valid = true;
+            ESP_LOGI(TAG, "temp: %.2f\t", temperature_value);
+        }
+        else
+        {
+            temperature_valid = false;
+            ESP_LOGW(TAG, "temperature readout error: %d", ds_err);
+        }
+    }
+}
+#endif
+
 // NOTE no need to have it in IRAM, but it is faster, and while it fits..
 void IRAM_ATTR app_main()
 {
+    // Setup
     setup();
 
+    // Start temperature loop
+#if HW_DS18B20_ENABLE
+    xTaskCreate(temperature_task, "temperature", 2000, NULL, tskIDLE_PRIORITY, NULL);
+#endif
+
+    // Wait for wall clock
 #if IRRIGATION_ENABLE
     ESP_LOGI(TAG, "irrigation schedule: '%s'", IRRIGATION_CRON_EXPRESSION);
 
@@ -299,7 +339,7 @@ void IRAM_ATTR app_main()
 
     while (true)
     {
-        // Separate if from while to avoid lint warning
+        // Apart from a while condition to avoid lint warning
         if (!running) break;
 
         // Simple status led (don't overwrite connecting states)
@@ -312,37 +352,6 @@ void IRAM_ATTR app_main()
 #if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
         log_buf[0] = '\0';
         char *log_output = log_buf;
-#endif
-
-        // Read temperature
-#if HW_DS18B20_ENABLE
-        // Back-off mechanism, when device fails constantly
-        if (temperature_failures < 3 || temperature_failures % 10 == 0)
-        {
-
-            ds18b20_convert_all(&owb_driver.bus);
-            ds18b20_wait_for_conversion(&temperature_sensor);
-
-            DS18B20_ERROR ds_err = ds18b20_read_temp(&temperature_sensor, &temperature_value);
-            if (ds_err == DS18B20_OK)
-            {
-                temperature_failures = 0;
-
-#if LOG_LOCAL_LEVEL >= ESP_LOG_INFO
-                log_output = util_append(log_output, log_end, "temp: %.2f\t", temperature_value);
-#endif
-            }
-            else
-            {
-                ESP_LOGW(TAG, "temperature readout error: %d", ds_err);
-                temperature_failures++;
-            }
-        }
-        else
-        {
-            // Do nothing, but increment counter, so readout is performed again after some delay
-            temperature_failures++;
-        }
 #endif
 
         // Read soil humidity
@@ -590,7 +599,7 @@ static esp_err_t metrics_http_handler(httpd_req_t *r)
 
     // Temperature
 #if HW_DS18B20_ENABLE
-    if (temperature_failures == 0)
+    if (temperature_valid)
     {
         char temperature_address[17] = {};
         snprintf(temperature_address, sizeof(temperature_address), "%llx", *(uint64_t *)temperature_sensor.rom_code.bytes);
