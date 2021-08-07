@@ -451,7 +451,8 @@ void IRAM_ATTR app_main()
             // Normal flow
             if (water_level_valid)
             {
-                if (!valve_on && (int)(water_level * 100) <= IRRIGATION_WATER_LEVEL_LOW_PERCENT)
+                // NOTE don't turn on, when manually turned off
+                if (!valve_on && (int)(water_level * 100) <= IRRIGATION_WATER_LEVEL_LOW_PERCENT && !manual_irrigation)
                 {
                     // Turn on the valve
                     ESP_LOGW(TAG, "turning on the valve, low water level detected");
